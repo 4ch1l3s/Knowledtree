@@ -6,7 +6,8 @@ Dự án **Knowledtree** là một hệ thống quản lý, được xây dựng
 Dự án này được thiết kế để phục vụ hai mục đích chính trong cùng một codebase:
 1.  **Web Admin Portal**: Trang quản trị dành cho người quản lý hệ thống (được xây dựng sẵn trên nền tảng MVC/Razor Pages của ABP).
 2.  **Mobile App Backend**: Cung cấp hệ thống API và bảo mật để phục vụ cho ứng dụng Mobile.
-    *   *Kế hoạch tương lai:* Ứng dụng Mobile sẽ được phát triển bằng **React Native** và **TypeScript**.
+
+*   *Kế hoạch tương lai:* Ứng dụng Mobile sẽ được phát triển bằng **React Native** và **TypeScript**.
 
 ## Cấu hình đã được tùy chỉnh
 Để thuận tiện cho quá trình phát triển (Dev), dự án đã được tích hợp sẵn các công cụ tự động:
