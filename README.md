@@ -22,4 +22,4 @@ Respository này được thiết kế để phục vụ hai mục đích chính
 ## Hướng dẫn chạy dự án
 1.  Mở `Knowledtree.sln` bằng Visual Studio.
 2.  Đặt **`Knowledtree.Web`** làm **Startup Project**.
-3.  F5
+3.  6
