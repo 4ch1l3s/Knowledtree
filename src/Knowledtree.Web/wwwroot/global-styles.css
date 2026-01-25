@@ -1,0 +1,28 @@
+/* Custom Branding - Replace Logo with Text */
+:root {
+    --lpx-logo: none;
+    --lpx-logo-icon: none;
+}
+
+.lpx-brand-logo {
+    background-image: none !important;
+    width: auto !important;
+    display: flex !important;
+    align-items: center;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff !important; /* Force white for sidebar contrast */
+    text-decoration: none !important;
+    padding-left: 0.5rem;
+}
+
+.lpx-brand-logo::after {
+    content: "Knowledtree";
+}
+
+/* Handle collapsed state */
+body.lpx-sidebar-collapsed .lpx-brand-logo::after {
+    content: "Kt";
+    padding-left: 0;
+}

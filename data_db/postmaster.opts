@@ -1,0 +1,1 @@
+E:/Portsql/bin/postgres.exe "-D" "E:/Knowledtree/data_db" "-p" "5433"
