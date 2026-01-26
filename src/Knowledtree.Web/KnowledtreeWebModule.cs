@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Extensions.DependencyInjection;
@@ -232,6 +233,8 @@ public class KnowledtreeWebModule : AbpModule
         app.UseAbpSwaggerUI(options =>
         {
             options.SwaggerEndpoint("/swagger/v1/swagger.json", "Knowledtree API");
+            options.OAuthClientId("Knowledtree_Swagger");
+            options.OAuthUsePkce();
         });
 
         app.UseAuditing();

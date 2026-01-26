@@ -14,7 +14,7 @@ if "%ERRORLEVEL%"=="0" (
 echo PostgreSQL is NOT running. Starting now...
 start "" /B "%PG_HOME%\bin\pg_ctl.exe" -D "%PG_HOME%\data" -l "%PG_HOME%\data\server.log" start
 
-REM Wait a bit for DB to warm up
-timeout /t 3 /nobreak > NUL
+REM Wait a bit for DB to warm up (using ping instead of timeout for non-interactive mode)
+ping 127.0.0.1 -n 4 > NUL
 echo PostgreSQL started.
 exit /b 0

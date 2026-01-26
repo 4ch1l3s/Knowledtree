@@ -126,6 +126,28 @@ public class OpenIddictDataSeedContributor : IDataSeedContributor, ITransientDep
                 clientUri: swaggerRootUrl
             );
         }
+
+        // Mobile App Client (React Native, etc.)
+        var mobileClientId = configurationSection["Knowledtree_App:ClientId"];
+        if (!mobileClientId.IsNullOrWhiteSpace())
+        {
+            var mobileRootUrl = configurationSection["Knowledtree_App:RootUrl"]?.TrimEnd('/');
+
+            await CreateApplicationAsync(
+                name: mobileClientId!,
+                type: OpenIddictConstants.ClientTypes.Public,
+                consentType: OpenIddictConstants.ConsentTypes.Implicit,
+                displayName: "Mobile Application",
+                secret: null,
+                grantTypes: new List<string>
+                {
+                    OpenIddictConstants.GrantTypes.Password,
+                    OpenIddictConstants.GrantTypes.RefreshToken
+                },
+                scopes: commonScopes,
+                clientUri: mobileRootUrl
+            );
+        }
     }
 
     private async Task CreateApplicationAsync(
