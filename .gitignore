@@ -263,3 +263,26 @@ src/Knowledtree.Blazor.Server.Tiered/Logs/*
 
 # Use abp install-libs to restore.
 **/wwwroot/libs/*
+
+# React Native / Mobile
+.expo/
+web-build/
+node_modules/
+npm-debug.log
+yarn-error.log
+watchman.config
+metro.config.js.swp
+
+# Android
+android/app/build/
+android/.gradle/
+android/app/src/main/assets/
+
+# iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/
+ios/*.xcodeproj/xcuserdata/
+*.p12
+*.key
+*.mobileprovision

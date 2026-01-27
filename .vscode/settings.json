@@ -1,0 +1,5 @@
+{
+    "files.exclude": {
+        "mobile/ios": true
+    }
+}
