@@ -7,15 +7,17 @@ const LoginScreen = () => {
     const [password, setPassword] = useState('123qwe');
     const { login } = useContext(AuthContext);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
     const handleLogin = async () => {
         setIsSubmitting(true);
         setError(null);
         try {
             await login(username, password);
-        } catch (e) {
-            setError('Login failed. Please check credentials.');
+        } catch (e: any) {
+            const errorMessage = e.response?.data?.error_description || e.message || 'Unknown error';
+            setError(`Error: ${errorMessage}`);
+            console.error('Login Error Details:', e);
         } finally {
             setIsSubmitting(false);
         }

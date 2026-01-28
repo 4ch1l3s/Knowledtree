@@ -98,6 +98,14 @@ public class KnowledtreeWebModule : AbpModule
                 serverBuilder.AddProductionEncryptionAndSigningCertificate("openiddict.pfx", "00000000-0000-0000-0000-000000000000");
             });
         }
+
+        if (hostingEnvironment.IsDevelopment())
+        {
+            PreConfigure<OpenIddictServerBuilder>(serverBuilder =>
+            {
+                serverBuilder.UseAspNetCore().DisableTransportSecurityRequirement();
+            });
+        }
     }
 
     public override void ConfigureServices(ServiceConfigurationContext context)
