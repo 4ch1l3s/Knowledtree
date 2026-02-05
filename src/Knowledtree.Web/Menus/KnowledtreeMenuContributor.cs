@@ -36,15 +36,15 @@ public class KnowledtreeMenuContributor : IMenuContributor
 
         if (MultiTenancyConsts.IsEnabled)
         {
-            administration.SetSubItemOrder(TenantManagementMenuNames.GroupName, 1);
+            administration?.SetSubItemOrder(TenantManagementMenuNames.GroupName, 1);
         }
         else
         {
-            administration.TryRemoveMenuItem(TenantManagementMenuNames.GroupName);
+            administration?.TryRemoveMenuItem(TenantManagementMenuNames.GroupName);
         }
 
-        administration.SetSubItemOrder(IdentityMenuNames.GroupName, 2);
-        administration.SetSubItemOrder(SettingManagementMenuNames.GroupName, 3);
+        administration?.SetSubItemOrder(IdentityMenuNames.GroupName, 2);
+        administration?.SetSubItemOrder(SettingManagementMenuNames.GroupName, 3);
 
         return Task.CompletedTask;
     }
