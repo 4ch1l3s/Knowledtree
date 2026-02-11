@@ -1,0 +1,26 @@
+# Antigravity Agent Rules
+# Cập nhật: 2026-02-08
+
+================================================================================
+USER CUSTOM RULES
+================================================================================
+
+(Chưa có custom rules được định nghĩa)
+
+Để thêm custom rules, user có thể định nghĩa trong cấu hình Gemini/Antigravity.
+
+================================================================================
+WORKFLOWS ĐÃ ĐỊNH NGHĨA
+================================================================================
+
+1. /install-github-app
+   - Mô tả: Hướng dẫn cài đặt GitHub App để tự động review code mỗi khi push
+   - File: .agent/workflows/install-github-app.md
+
+================================================================================
+NOTES
+================================================================================
+
+- Các rules này áp dụng cho Antigravity AI Agent
+- Có thể tùy chỉnh thêm theo nhu cầu dự án
+- Xem thêm cấu hình CodeRabbit tại: .coderabbit.yaml

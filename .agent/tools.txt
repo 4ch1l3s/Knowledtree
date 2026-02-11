@@ -1,0 +1,110 @@
+# Antigravity Agent Tools
+# Danh sách 17 tools hiện có
+# Cập nhật: 2026-02-08
+
+================================================================================
+FILE SYSTEM & CODE TOOLS (9 tools)
+================================================================================
+
+1. view_file
+   - Xem nội dung file (hỗ trợ cả file văn bản và một số file nhị phân như hình ảnh, video)
+   - Có thể xem theo dòng từ StartLine đến EndLine
+
+2. view_file_outline
+   - Xem outline của file (các class, function, method)
+   - Ưu tiên sử dụng khi khám phá file lần đầu
+
+3. view_code_item
+   - Xem chi tiết một code item cụ thể (class, function)
+   - Sử dụng fully qualified names như Foo.bar
+
+4. write_to_file
+   - Tạo file mới
+   - Có thể tạo cả thư mục cha nếu chưa tồn tại
+
+5. replace_file_content
+   - Chỉnh sửa một đoạn liền mạch trong file
+   - Cần chỉ định StartLine, EndLine, TargetContent, ReplacementContent
+
+6. multi_replace_file_content
+   - Chỉnh sửa nhiều đoạn không liền mạch trong cùng một file
+   - Sử dụng khi cần edit nhiều vị trí khác nhau
+
+7. list_dir
+   - Liệt kê nội dung thư mục (files và subdirectories)
+   - Hiển thị size, type, số lượng children
+
+8. find_by_name
+   - Tìm file/thư mục theo tên (sử dụng fd)
+   - Hỗ trợ glob pattern, lọc theo extension, type
+
+9. grep_search
+   - Tìm kiếm pattern trong file (sử dụng ripgrep)
+   - Hỗ trợ regex, case-insensitive search
+
+================================================================================
+TERMINAL & COMMAND TOOLS (4 tools)
+================================================================================
+
+10. run_command
+    - Chạy lệnh command line (PowerShell trên Windows)
+    - Có thể chạy background hoặc đợi kết quả
+
+11. command_status
+    - Kiểm tra trạng thái lệnh đang chạy background
+    - Lấy output và error của command
+
+12. send_command_input
+    - Gửi input vào lệnh đang chạy (stdin)
+    - Có thể terminate command
+
+13. read_terminal
+    - Đọc nội dung terminal theo Process ID
+
+================================================================================
+BROWSER & WEB TOOLS (4 tools)
+================================================================================
+
+14. browser_subagent
+    - Khởi chạy subagent để thao tác trên browser
+    - Click, type, navigate, scroll, screenshot
+    - Có thể record video các thao tác
+
+15. read_url_content
+    - Đọc nội dung từ URL (HTTP request)
+    - Convert HTML thành markdown, hỗ trợ PDF
+    - Không thực thi JavaScript
+
+16. view_content_chunk
+    - Xem chunk cụ thể của document đã đọc qua read_url_content
+
+17. search_web
+    - Tìm kiếm web
+    - Trả về summary và URL citations
+
+================================================================================
+IMAGE GENERATION (1 tool)
+================================================================================
+
+18. generate_image
+    - Tạo hoặc chỉnh sửa hình ảnh từ text prompt
+    - Có thể combine/edit existing images
+
+================================================================================
+MCP - MODEL CONTEXT PROTOCOL (2 tools)
+================================================================================
+
+19. list_resources
+    - Liệt kê resources từ MCP server
+
+20. read_resource
+    - Đọc nội dung resource từ MCP server
+
+================================================================================
+INTERNAL/SYSTEM TOOLS (không liệt kê trực tiếp)
+================================================================================
+
+- task_boundary: Quản lý task và progress tracking
+- notify_user: Giao tiếp với user trong task mode
+
+================================================================================
