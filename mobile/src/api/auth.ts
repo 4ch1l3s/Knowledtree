@@ -10,6 +10,14 @@ export interface LoginResponse {
     refresh_token?: string;
 }
 
+export interface UserInfo {
+    userName: string;
+    email: string;
+    name?: string;
+    surname?: string;
+    phoneNumber?: string;
+}
+
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
     const data = qs.stringify({
         grant_type: 'password',
@@ -25,5 +33,10 @@ export const login = async (username: string, password: string): Promise<LoginRe
         },
     });
 
+    return response.data;
+};
+
+export const getCurrentUser = async (): Promise<UserInfo> => {
+    const response = await client.get<UserInfo>('/api/account/my-profile');
     return response.data;
 };
