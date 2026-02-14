@@ -4,8 +4,8 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../theme';
 
 const LoginScreen = () => {
-    const [username, setUsername] = useState('admin');
-    const [password, setPassword] = useState('Vu050739@');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const { login } = useContext(AuthContext);
     const { theme } = useTheme();
     const [isSubmitting, setIsSubmitting] = useState(false);
