@@ -24,3 +24,18 @@ NOTES
 - Các rules này áp dụng cho Antigravity AI Agent
 - Có thể tùy chỉnh thêm theo nhu cầu dự án
 - Xem thêm cấu hình CodeRabbit tại: .coderabbit.yaml
+
+================================================================================
+AUTOMATED HOOKS & RULES
+================================================================================
+
+1. [TypeScript] **Type Check Hook**:
+   - Whenever you edit any TypeScript file (`.ts`, `.tsx`, especially in `mobile/`), you MUST immediately run a type check to ensure no regressions.
+   - Command: `cd mobile && npx tsc --noEmit`
+   - If errors are found, you MUST fix them before proceeding.
+
+2. [Permissions] **Notification Hook**:
+   - Before executing ANY command that requires user approval (`run_command` with `SafeToAutoRun=false`), you MUST first use the `notify_user` tool.
+   - Send a message alerting the user: "I need to run a command to [doing what]. Please review and approve."
+   - ONLY THEN should you call `run_command`.
+   - Exception: If you are already in a conversational flow where the command is immediate and obvious.
