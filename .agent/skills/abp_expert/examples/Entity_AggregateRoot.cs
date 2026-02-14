@@ -25,7 +25,7 @@ public class Book : FullAuditedAggregateRoot<Guid>
     public virtual string? Description { get; set; }
 
     /// <summary>Price — public setter for simple values.</summary>
-    public virtual float Price { get; set; }
+    public virtual decimal Price { get; set; }
 
     /// <summary>
     /// Reference to another Aggregate Root (Author) — by ID only, no navigation property.
@@ -48,7 +48,7 @@ public class Book : FullAuditedAggregateRoot<Guid>
         Guid id,
         [NotNull] string title,
         Guid authorId,
-        float price,
+        decimal price,
         string? description = null)
         : base(id)
     {

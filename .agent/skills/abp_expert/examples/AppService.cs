@@ -6,102 +6,107 @@
 
 // ----- INTERFACE (in Application.Contracts) -----
 
-using System;
-using Volo.Abp.Application.Services;
-
-namespace Knowledtree.Books;
-
-/// <summary>
-/// AppService interface for Book aggregate root.
-/// - Inherits IApplicationService.
-/// - Uses AppService postfix.
-/// - Only DTOs for inputs/outputs, never entities.
-/// </summary>
-public interface IBookAppService : IApplicationService
+namespace Knowledtree.Books
 {
-    Task<BookDto> GetAsync(Guid id);
-    Task<PagedResultDto<BookDto>> GetListAsync(PagedAndSortedResultRequestDto input);
-    Task<BookDto> CreateAsync(CreateUpdateBookDto input);
-    Task<BookDto> UpdateAsync(Guid id, CreateUpdateBookDto input);
-    Task DeleteAsync(Guid id);
+    using System;
+    using System.Threading.Tasks;
+    using Volo.Abp.Application.Dtos;
+    using Volo.Abp.Application.Services;
+
+    /// <summary>
+    /// AppService interface for Book aggregate root.
+    /// - Inherits IApplicationService.
+    /// - Uses AppService postfix.
+    /// - Only DTOs for inputs/outputs, never entities.
+    /// </summary>
+    public interface IBookAppService : IApplicationService
+    {
+        Task<BookDto> GetAsync(Guid id);
+        Task<PagedResultDto<BookDto>> GetListAsync(PagedAndSortedResultRequestDto input);
+        Task<BookDto> CreateAsync(CreateUpdateBookDto input);
+        Task<BookDto> UpdateAsync(Guid id, CreateUpdateBookDto input);
+        Task DeleteAsync(Guid id);
+    }
 }
 
 
 // ----- IMPLEMENTATION (in Application) -----
 
-using System;
-using System.Threading.Tasks;
-using Volo.Abp.Application.Dtos;
-
-namespace Knowledtree.Books;
-
-/// <summary>
-/// BookAppService implementation.
-/// - Inherits KnowledtreeAppService (project base class).
-/// - Injects IBookRepository (specific, not generic).
-/// - All public methods are virtual.
-/// - No private methods — use protected virtual instead.
-/// </summary>
-public class BookAppService : KnowledtreeAppService, IBookAppService
+namespace Knowledtree.Books
 {
-    private readonly IBookRepository _bookRepository;
+    using System;
+    using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Volo.Abp.Application.Dtos;
 
-    public BookAppService(IBookRepository bookRepository)
+    /// <summary>
+    /// BookAppService implementation.
+    /// - Inherits KnowledtreeAppService (project base class).
+    /// - Injects IBookRepository (specific, not generic).
+    /// - All public methods are virtual.
+    /// - No private methods — use protected virtual instead.
+    /// </summary>
+    public class BookAppService : KnowledtreeAppService, IBookAppService
     {
-        _bookRepository = bookRepository;
-    }
+        private readonly IBookRepository _bookRepository;
 
-    public virtual async Task<BookDto> GetAsync(Guid id)
-    {
-        var book = await _bookRepository.GetAsync(id);
-        return ObjectMapper.Map<Book, BookDto>(book);
-    }
+        public BookAppService(IBookRepository bookRepository)
+        {
+            _bookRepository = bookRepository;
+        }
 
-    public virtual async Task<PagedResultDto<BookDto>> GetListAsync(
-        PagedAndSortedResultRequestDto input)
-    {
-        var totalCount = await _bookRepository.GetCountAsync();
-        var books = await _bookRepository.GetPagedListAsync(
-            input.SkipCount,
-            input.MaxResultCount,
-            input.Sorting ?? nameof(Book.Title));
+        public virtual async Task<BookDto> GetAsync(Guid id)
+        {
+            var book = await _bookRepository.GetAsync(id);
+            return ObjectMapper.Map<Book, BookDto>(book);
+        }
 
-        return new PagedResultDto<BookDto>(
-            totalCount,
-            ObjectMapper.Map<List<Book>, List<BookDto>>(books));
-    }
+        public virtual async Task<PagedResultDto<BookDto>> GetListAsync(
+            PagedAndSortedResultRequestDto input)
+        {
+            var totalCount = await _bookRepository.GetCountAsync();
+            var books = await _bookRepository.GetPagedListAsync(
+                input.SkipCount,
+                input.MaxResultCount,
+                input.Sorting ?? nameof(Book.Title));
 
-    public virtual async Task<BookDto> CreateAsync(CreateUpdateBookDto input)
-    {
-        var book = new Book(
-            GuidGenerator.Create(), // Use IGuidGenerator, not Guid.NewGuid()
-            input.Title,
-            input.AuthorId,
-            input.Price,
-            input.Description);
+            return new PagedResultDto<BookDto>(
+                totalCount,
+                ObjectMapper.Map<List<Book>, List<BookDto>>(books));
+        }
 
-        await _bookRepository.InsertAsync(book);
+        public virtual async Task<BookDto> CreateAsync(CreateUpdateBookDto input)
+        {
+            var book = new Book(
+                GuidGenerator.Create(), // Use IGuidGenerator, not Guid.NewGuid()
+                input.Title,
+                input.AuthorId,
+                input.Price,
+                input.Description);
 
-        return ObjectMapper.Map<Book, BookDto>(book);
-    }
+            await _bookRepository.InsertAsync(book);
 
-    public virtual async Task<BookDto> UpdateAsync(Guid id, CreateUpdateBookDto input)
-    {
-        var book = await _bookRepository.GetAsync(id);
+            return ObjectMapper.Map<Book, BookDto>(book);
+        }
 
-        book.SetTitle(input.Title);
-        book.SetAuthor(input.AuthorId);
-        book.Price = input.Price;
-        book.Description = input.Description;
+        public virtual async Task<BookDto> UpdateAsync(Guid id, CreateUpdateBookDto input)
+        {
+            var book = await _bookRepository.GetAsync(id);
 
-        await _bookRepository.UpdateAsync(book); // Always call UpdateAsync explicitly
+            book.SetTitle(input.Title);
+            book.SetAuthor(input.AuthorId);
+            book.Price = input.Price;
+            book.Description = input.Description;
 
-        return ObjectMapper.Map<Book, BookDto>(book);
-    }
+            await _bookRepository.UpdateAsync(book); // Always call UpdateAsync explicitly
 
-    public virtual async Task DeleteAsync(Guid id)
-    {
-        await _bookRepository.DeleteAsync(id);
+            return ObjectMapper.Map<Book, BookDto>(book);
+        }
+
+        public virtual async Task DeleteAsync(Guid id)
+        {
+            await _bookRepository.DeleteAsync(id);
+        }
     }
 }
 
