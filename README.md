@@ -15,8 +15,20 @@ Respository này được thiết kế để phục vụ các mục đích chín
 ### Thông tin đăng nhập mặc định (Phòng trường hợp người viết README quên)
 *   **Username**: `admin`
 *   **Password**: `V****************39@` (Đã được cấu hình tự động reset)
+*   Mật khẩu có 1 ký tự @
+*   Mật khẩu có 1 ký tự @
+*   Mật khẩu có 1 ký tự @
+*   Quan trọng nhắc lại 3 lần, gửi tới tôi ở tương lai, đừng có reset database vì mật khẩu mặc định
 
-## Hướng dẫn chạy dự án (Server side only)
-1.  Mở `Knowledtree.sln` bằng Visual Studio.
-2.  Đặt **`Knowledtree.Web`** làm **Startup Project**.
-3.  6
+## Hướng dẫn chạy dự án
+1. Khởi độhg server: net start postgresql-x64-16 (Server side)
+2. Khởi động backend trong VS (Server side)
+3. 6 (Vị trí danh dự)
+4. CD vào vị trí mobile/android, kết nối tới thiết bị test, kiểm tra trạng thái thiết bị "adb devices" (Client side)
+5. Khởi động ứng dụng "npm run android" (Client side)
+6. Nếu gặp lỗi, spam vào terminal:
+- "npm start -- --reset-cache"
+- "cd android
+./gradlew clean
+cd .."
+Trường hợp ở android sẵn rồi thì ko cần cd, chỉ cần clean là được
