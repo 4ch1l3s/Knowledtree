@@ -21,7 +21,7 @@ Respository này được thiết kế để phục vụ các mục đích chín
 *   Quan trọng nhắc lại 3 lần, gửi tới tôi ở tương lai, đừng có reset database vì mật khẩu mặc định
 
 ## Hướng dẫn chạy dự án
-1. Khởi độhg server: net start postgresql-x64-16 (Server side)
+1. Khởi động server: "net start postgresql-x64-16" (Server side)
 2. Khởi động backend trong VS (Server side)
 3. 6 (Vị trí danh dự)
 4. CD vào vị trí mobile/android, kết nối tới thiết bị test, kiểm tra trạng thái thiết bị "adb devices" (Client side)
