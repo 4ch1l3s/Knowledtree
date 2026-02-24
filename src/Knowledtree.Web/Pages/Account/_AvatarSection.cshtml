@@ -1,0 +1,31 @@
+@using Volo.Abp.Users
+@inject ICurrentUser CurrentUser
+@{
+    var userName = CurrentUser.UserName ?? "User";
+    var initials = userName.Length > 0 ? userName[0].ToString().ToUpper() : "U";
+    var userId = CurrentUser.Id;
+    var avatarUrl = userId.HasValue ? $"/api/user-avatar/{userId.Value}?t={DateTime.UtcNow.Ticks}" : "";
+}
+
+<!-- Avatar upload section — nằm phía trên form Personal Info -->
+<div class="text-center mb-4">
+    <div class="avatar-edit-container" data-upload-url="/api/user-avatar/upload">
+        @if (userId.HasValue)
+        {
+            <img src="@avatarUrl"
+                 class="avatar-large"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+            <div class="avatar-large-placeholder" style="display:none;">@initials</div>
+        }
+        else
+        {
+            <div class="avatar-large-placeholder">@initials</div>
+        }
+        <div class="avatar-edit-overlay">
+            <i class="fa fa-camera"></i>
+        </div>
+        <input type="file" accept="image/jpeg,image/png" />
+    </div>
+</div>
+
+<script src="/js/avatar-upload.js"></script>

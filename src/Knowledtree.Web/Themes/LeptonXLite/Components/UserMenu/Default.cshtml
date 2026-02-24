@@ -1,0 +1,48 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Volo.Abp.UI.Navigation
+@inject IMenuManager MenuManager
+@inject Volo.Abp.Users.ICurrentUser CurrentUser
+
+@{
+    var menu = await MenuManager.GetAsync(StandardMenus.User);
+    var userName = CurrentUser.UserName ?? "User";
+    var initials = userName.Length > 0 ? userName[0].ToString().ToUpper() : "U";
+    var userId = CurrentUser.Id;
+    var avatarUrl = userId.HasValue ? $"/api/user-avatar/{userId.Value}?t={DateTime.UtcNow.Ticks}" : "";
+}
+
+<div class="dropdown">
+    <div class="lpx-user-profile dropdown-toggle" role="button" id="userDropdown"
+         data-bs-toggle="dropdown" aria-expanded="false">
+        @if (userId.HasValue)
+        {
+            <img src="@avatarUrl"
+                 class="lpx-user-avatar"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+            <span class="lpx-user-avatar-placeholder" style="display:none;">@initials</span>
+        }
+        else
+        {
+            <span class="lpx-user-avatar-placeholder">@initials</span>
+        }
+        <span class="user-full-name">@userName</span>
+    </div>
+    <div class="dropdown-menu" aria-labelledby="userDropdown">
+        @foreach (var menuItem in menu.Items)
+        {
+            <a class="dropdown-item" href="@menuItem.Url" id="@($"MenuItem_{menuItem.Name.Replace(".", "_")}")">
+                @if (!string.IsNullOrEmpty(menuItem.Icon))
+                {
+                    <span class="lpx-menu-item-icon">
+                        <i class="lpx-icon @menuItem.Icon"></i>
+                    </span>
+                }
+                <span>@menuItem.DisplayName</span>
+            </a>
+            @if (menuItem != menu.Items.Last())
+            {
+                <div class="dropdown-divider"></div>
+            }
+        }
+    </div>
+</div>

@@ -153,6 +153,13 @@ public class KnowledtreeWebModule : AbpModule
                     bundle.AddFiles("/global-styles.css");
                 }
             );
+            options.ScriptBundles.Configure(
+                LeptonXLiteThemeBundles.Scripts.Global,
+                bundle =>
+                {
+                    bundle.AddFiles("/js/avatar-upload.js");
+                }
+            );
         });
     }
 
