@@ -21,8 +21,13 @@ const HomeScreen = () => {
     // ── Lấy avatar khi component mount ──
     useEffect(() => {
         const fetchAvatar = async () => {
-            const result = await getMyAvatar();
-            setAvatar(result);
+            try {
+                const result = await getMyAvatar();
+                setAvatar(result);
+            } catch {
+                // API lỗi → giữ avatar = null → hiện placeholder initials
+                setAvatar(null);
+            }
         };
         fetchAvatar();
     }, []);

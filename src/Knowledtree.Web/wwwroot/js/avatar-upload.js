@@ -6,9 +6,30 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', function () {
+        setupAvatarErrorHandlers();
         injectAccountManageAvatar();
         observeIdentityUserModal();
     });
+
+    // ── 0. Xử lý lỗi tải ảnh avatar (thay thế inline onerror bị CSP chặn) ──
+    function setupAvatarErrorHandlers() {
+        // Avatar lớn (trang Account/Manage)
+        document.querySelectorAll('img.avatar-large').forEach(function (img) {
+            img.addEventListener('error', function () {
+                this.style.display = 'none';
+                var placeholder = this.nextElementSibling;
+                if (placeholder) placeholder.style.display = 'flex';
+            });
+        });
+        // Avatar nhỏ trên topbar (UserMenu)
+        document.querySelectorAll('img.lpx-user-avatar').forEach(function (img) {
+            img.addEventListener('error', function () {
+                this.style.display = 'none';
+                var placeholder = this.nextElementSibling;
+                if (placeholder) placeholder.style.display = 'flex';
+            });
+        });
+    }
 
     // ── 1. Account/Manage: inject avatar vào Personal Info ──
     function injectAccountManageAvatar() {

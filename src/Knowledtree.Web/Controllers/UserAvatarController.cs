@@ -40,6 +40,7 @@ public class UserAvatarController : AbpControllerBase
             return NotFound();
         }
 
+        Response.Headers["Cache-Control"] = "no-cache";
         var bytes = Convert.FromBase64String(avatar.Base64Content);
         return File(bytes, avatar.ContentType);
     }
@@ -58,6 +59,7 @@ public class UserAvatarController : AbpControllerBase
             return NotFound();
         }
 
+        Response.Headers["Cache-Control"] = "no-cache";
         var bytes = Convert.FromBase64String(avatar.Base64Content);
         return File(bytes, avatar.ContentType);
     }
@@ -67,7 +69,6 @@ public class UserAvatarController : AbpControllerBase
     /// </summary>
     [HttpPost("upload")]
     [Authorize]
-    [IgnoreAntiforgeryToken]
     public async Task<IActionResult> Upload([FromForm] IFormFile file)
     {
         Logger.LogInformation("[Avatar DEBUG] Upload endpoint HIT");
@@ -111,7 +112,6 @@ public class UserAvatarController : AbpControllerBase
     /// </summary>
     [HttpPost("upload/{userId}")]
     [Authorize]
-    [IgnoreAntiforgeryToken]
     public async Task<IActionResult> UploadForUser(Guid userId, [FromForm] IFormFile file)
     {
         Logger.LogInformation("[Avatar DEBUG] UploadForUser endpoint HIT, userId={UserId}", userId);

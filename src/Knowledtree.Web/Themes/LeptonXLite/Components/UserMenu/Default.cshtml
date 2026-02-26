@@ -8,7 +8,7 @@
     var userName = CurrentUser.UserName ?? "User";
     var initials = userName.Length > 0 ? userName[0].ToString().ToUpper() : "U";
     var userId = CurrentUser.Id;
-    var avatarUrl = userId.HasValue ? $"/api/user-avatar/{userId.Value}?t={DateTime.UtcNow.Ticks}" : "";
+    var avatarUrl = userId.HasValue ? $"/api/user-avatar/{userId.Value}" : "";
 }
 
 <div class="dropdown">
@@ -17,8 +17,7 @@
         @if (userId.HasValue)
         {
             <img src="@avatarUrl"
-                 class="lpx-user-avatar"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                 class="lpx-user-avatar" />
             <span class="lpx-user-avatar-placeholder" style="display:none;">@initials</span>
         }
         else

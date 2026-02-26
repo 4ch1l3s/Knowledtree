@@ -1,5 +1,6 @@
 ﻿using Knowledtree.UserAvatars;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Volo.Abp.EntityFrameworkCore.Modeling;
 using Volo.Abp.AuditLogging.EntityFrameworkCore;
 using Volo.Abp.BackgroundJobs.EntityFrameworkCore;
@@ -91,7 +92,8 @@ public class KnowledtreeDbContext :
             b.Property(x => x.Content).IsRequired();
             b.Property(x => x.ContentType).IsRequired().HasMaxLength(UserAvatarConsts.MaxContentTypeLength);
 
-            // Mỗi user chỉ có 1 avatar
+            // Mỗi user chỉ có 1 avatar — FK cascade delete khi xóa user
+            b.HasOne<IdentityUser>().WithOne().HasForeignKey<UserAvatar>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => x.UserId).IsUnique();
         });
     }

@@ -1,7 +1,7 @@
 @model Knowledtree.Web.Components.AvatarWidget.AvatarWidgetModel
 @{
     var avatarUrl = Model.UserId.HasValue
-        ? $"/api/user-avatar/{Model.UserId.Value}?t={DateTime.UtcNow.Ticks}"
+        ? $"/api/user-avatar/{Model.UserId.Value}"
         : "";
 }
 
@@ -11,8 +11,7 @@
         @if (Model.UserId.HasValue)
         {
             <img src="@avatarUrl"
-                 class="avatar-large"
-                 onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                 class="avatar-large" />
             <div class="avatar-large-placeholder" style="display:none;">@Model.Initials</div>
         }
         else
