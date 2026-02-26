@@ -1,98 +1,168 @@
-import React, { useContext } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, TextStyle, Image } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../theme';
+import { getMyAvatar, UserAvatarDto } from '../api/avatar';
+import { scale } from '../utils/scale';
 
 const HomeScreen = () => {
     const { logout, userInfo } = useContext(AuthContext);
     const { theme, isDark, toggleTheme } = useTheme();
 
-    // Lấy tên hiển thị: ưu tiên name, nếu không có thì dùng userName
+    // ── State ảnh đại diện ──
+    const [avatar, setAvatar] = useState<UserAvatarDto | null>(null);
+
+    // ── Tên hiển thị: ưu tiên name > userName > fallback ──
     const displayName = userInfo?.name || userInfo?.userName || 'Người dùng';
 
+    // ── Chữ cái đầu cho placeholder avatar ──
+    const initials = displayName.charAt(0).toUpperCase();
+
+    // ── Lấy avatar khi component mount ──
+    useEffect(() => {
+        const fetchAvatar = async () => {
+            try {
+                const result = await getMyAvatar();
+                setAvatar(result);
+            } catch {
+                // API lỗi → giữ avatar = null → hiện placeholder initials
+                setAvatar(null);
+            }
+        };
+        fetchAvatar();
+    }, []);
+
+    // ── Kích thước avatar ──
+    const avatarSize = scale.s(80);
+
+    // ── Style động: dùng theme tokens đã responsive tự động ──
+    const dynamicStyles = {
+        // Bố cục toàn màn hình, căn giữa nội dung
+        container: {
+            flex: 1,
+            justifyContent: 'center' as const,
+            alignItems: 'center' as const,
+            padding: theme.spacing.lg,
+            backgroundColor: theme.colors.background,
+        },
+        // Card thông tin người dùng
+        card: {
+            width: '100%' as const,
+            padding: theme.spacing.xl,
+            borderRadius: theme.borderRadius.xl,
+            alignItems: 'center' as const,
+            marginBottom: theme.spacing.lg,
+            backgroundColor: theme.colors.surface,
+            ...theme.shadows.md,
+        },
+        // Vùng chứa ảnh đại diện tròn
+        avatarContainer: {
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: avatarSize / 2,
+            marginBottom: theme.spacing.md,
+            overflow: 'hidden' as const,
+            backgroundColor: theme.colors.primary,
+            justifyContent: 'center' as const,
+            alignItems: 'center' as const,
+        },
+        // Ảnh đại diện
+        avatarImage: {
+            width: avatarSize,
+            height: avatarSize,
+        },
+        // Chữ cái đầu khi chưa có avatar
+        avatarInitials: {
+            fontSize: scale.ms(32),
+            fontWeight: theme.typography.fontWeightBold as TextStyle['fontWeight'],
+            color: theme.colors.onPrimary,
+        },
+        // Dòng chào "Xin chào,"
+        greeting: {
+            fontSize: theme.typography.fontSizeLg,
+            fontWeight: theme.typography.fontWeightRegular as TextStyle['fontWeight'],
+            marginBottom: theme.spacing.xs,
+            color: theme.colors.text,
+        },
+        // Tên người dùng nổi bật
+        name: {
+            fontSize: theme.typography.fontSizeXxl,
+            fontWeight: theme.typography.fontWeightBold as TextStyle['fontWeight'],
+            marginBottom: theme.spacing.sm,
+            color: theme.colors.primary,
+        },
+        // Email phụ
+        email: {
+            fontSize: theme.typography.fontSizeSm,
+            marginTop: theme.spacing.sm,
+            color: theme.colors.textSecondary,
+        },
+        // Style chung cho các nút bên dưới
+        button: {
+            width: '100%' as const,
+            paddingVertical: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
+            borderRadius: theme.borderRadius.lg,
+            alignItems: 'center' as const,
+            marginBottom: theme.spacing.md - theme.spacing.xs,
+        },
+        buttonText: {
+            fontSize: theme.typography.fontSizeMd,
+            fontWeight: theme.typography.fontWeightMedium as TextStyle['fontWeight'],
+        },
+    };
+
+    // ── Giao diện: avatar + thông tin user + nút chuyển theme + đăng xuất ──
     return (
-        <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-            <View style={[styles.card, { backgroundColor: theme.colors.surface }, theme.shadows.md]}>
-                <Text style={[styles.greeting, { color: theme.colors.text }]}>
-                    Xin chào,
-                </Text>
-                <Text style={[styles.name, { color: theme.colors.primary }]}>
-                    {displayName}!
-                </Text>
+        <View style={dynamicStyles.container}>
+            {/* Card thông tin người dùng */}
+            <View style={dynamicStyles.card}>
+                {/* Ảnh đại diện hoặc placeholder chữ cái đầu */}
+                <View style={dynamicStyles.avatarContainer}>
+                    {avatar ? (
+                        <Image
+                            source={{
+                                uri: `data:${avatar.contentType};base64,${avatar.base64Content}`,
+                            }}
+                            style={dynamicStyles.avatarImage}
+                        />
+                    ) : (
+                        <Text style={dynamicStyles.avatarInitials}>{initials}</Text>
+                    )}
+                </View>
+
+                <Text style={dynamicStyles.greeting}>Xin chào,</Text>
+                <Text style={dynamicStyles.name}>{displayName}!</Text>
                 {userInfo?.email && (
-                    <Text style={[styles.email, { color: theme.colors.textSecondary }]}>
-                        {userInfo.email}
-                    </Text>
+                    <Text style={dynamicStyles.email}>{userInfo.email}</Text>
                 )}
             </View>
 
+            {/* Nút chuyển đổi sáng/tối */}
             <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.colors.primary }]}
+                style={[dynamicStyles.button, { backgroundColor: theme.colors.primary }]}
                 onPress={toggleTheme}
             >
-                <Text style={[styles.buttonText, { color: theme.colors.onPrimary }]}>
-                    {isDark ? '☀️ Chế độ sáng' : '🌙 Chế độ tối'}
+                <Text style={[dynamicStyles.buttonText, { color: theme.colors.onPrimary }]}>
+                    {isDark ? 'Chế độ sáng' : 'Chế độ tối'}
                 </Text>
             </TouchableOpacity>
 
+            {/* Nút đăng xuất */}
             <TouchableOpacity
-                style={[styles.button, styles.logoutButton, {
+                style={[dynamicStyles.button, {
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
+                    borderWidth: 1,
                 }]}
                 onPress={logout}
             >
-                <Text style={[styles.buttonText, { color: theme.colors.error }]}>
+                <Text style={[dynamicStyles.buttonText, { color: theme.colors.error }]}>
                     Đăng xuất
                 </Text>
             </TouchableOpacity>
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    card: {
-        width: '100%',
-        padding: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    greeting: {
-        fontSize: 18,
-        fontWeight: '400',
-        marginBottom: 4,
-    },
-    name: {
-        fontSize: 32,
-        fontWeight: '700',
-        marginBottom: 8,
-    },
-    email: {
-        fontSize: 14,
-        marginTop: 8,
-    },
-    button: {
-        width: '100%',
-        paddingVertical: 16,
-        paddingHorizontal: 24,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    logoutButton: {
-        borderWidth: 1,
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-});
 
 export default HomeScreen;

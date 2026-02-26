@@ -1,4 +1,5 @@
 import { palette, derived, status } from './colors';
+import { scale } from '../utils/scale';
 
 // ─── Theme Interface ──────────────────────────────────────────
 // Đây là "hợp đồng" giữa theme và screens.
@@ -74,29 +75,29 @@ export interface Theme {
 // Không đổi giữa các theme
 
 const spacing = {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 48,
+    xs: scale.s(4),
+    sm: scale.s(8),
+    md: scale.s(16),
+    lg: scale.s(24),
+    xl: scale.s(32),
+    xxl: scale.s(48),
 };
 
 const borderRadius = {
-    sm: 4,
-    md: 8,
-    lg: 12,
-    xl: 16,
+    sm: scale.s(4),
+    md: scale.s(8),
+    lg: scale.s(12),
+    xl: scale.s(16),
     full: 9999,
 };
 
 const typography = {
-    fontSizeXs: 12,
-    fontSizeSm: 14,
-    fontSizeMd: 16,
-    fontSizeLg: 18,
-    fontSizeXl: 24,
-    fontSizeXxl: 32,
+    fontSizeXs: scale.ms(12),
+    fontSizeSm: scale.ms(14),
+    fontSizeMd: scale.ms(16),
+    fontSizeLg: scale.ms(18),
+    fontSizeXl: scale.ms(24),
+    fontSizeXxl: scale.ms(32),
     fontWeightRegular: '400',
     fontWeightMedium: '500',
     fontWeightBold: '700',

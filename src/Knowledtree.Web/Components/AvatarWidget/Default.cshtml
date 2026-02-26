@@ -1,0 +1,29 @@
+@model Knowledtree.Web.Components.AvatarWidget.AvatarWidgetModel
+@{
+    var avatarUrl = Model.UserId.HasValue
+        ? $"/api/user-avatar/{Model.UserId.Value}"
+        : "";
+}
+
+<div class="text-center mb-4">
+    <div class="avatar-edit-container@(Model.Editable ? "" : " pe-none")"
+         data-upload-url="@Model.UploadUrl">
+        @if (Model.UserId.HasValue)
+        {
+            <img src="@avatarUrl"
+                 class="avatar-large" />
+            <div class="avatar-large-placeholder" style="display:none;">@Model.Initials</div>
+        }
+        else
+        {
+            <div class="avatar-large-placeholder">@Model.Initials</div>
+        }
+        @if (Model.Editable)
+        {
+            <div class="avatar-edit-overlay">
+                <i class="fa fa-camera"></i>
+            </div>
+            <input type="file" accept="image/jpeg,image/png" />
+        }
+    </div>
+</div>

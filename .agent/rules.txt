@@ -24,6 +24,7 @@ NOTES
 - Các rules này áp dụng cho Antigravity AI Agent
 - Có thể tùy chỉnh thêm theo nhu cầu dự án
 - Xem thêm cấu hình CodeRabbit tại: .coderabbit.yaml
+- Comment trong code phải bằng tiếng Việt, không được phép dùng icon trong comment
 
 ================================================================================
 AUTOMATED HOOKS & RULES
@@ -39,3 +40,4 @@ AUTOMATED HOOKS & RULES
    - Send a message alerting the user: "I need to run a command to [doing what]. Please review and approve."
    - ONLY THEN should you call `run_command`.
    - Exception: If you are already in a conversational flow where the command is immediate and obvious.
+

@@ -1,5 +1,6 @@
 {
     "files.exclude": {
         "mobile/ios": true
-    }
+    },
+    "java.compile.nullAnalysis.mode": "disabled"
 }

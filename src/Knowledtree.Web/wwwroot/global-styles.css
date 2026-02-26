@@ -26,3 +26,93 @@ body.lpx-sidebar-collapsed .lpx-brand-logo::after {
     content: "Kt";
     padding-left: 0;
 }
+
+/* ── Avatar Styles ── */
+
+/* Topbar: avatar tròn nhỏ bên cạnh tên đăng nhập */
+.lpx-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 8px;
+}
+
+.lpx-user-avatar-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--lpx-theme-primary, #3b82f6);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.lpx-user-profile {
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Account/Manage + Admin: avatar lớn với overlay chỉnh sửa */
+.avatar-edit-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 1.5rem;
+    cursor: pointer;
+}
+
+.avatar-edit-container img.avatar-large {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--lpx-theme-primary, #3b82f6);
+}
+
+.avatar-edit-container .avatar-large-placeholder {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: var(--lpx-theme-primary, #3b82f6);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 600;
+    border: 3px solid var(--lpx-theme-primary, #3b82f6);
+}
+
+.avatar-edit-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40%;
+    border-radius: 0 0 60px 60px;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.avatar-edit-container:hover .avatar-edit-overlay {
+    opacity: 1;
+}
+
+.avatar-edit-overlay i {
+    color: #fff;
+    font-size: 18px;
+}
+
+.avatar-edit-container input[type="file"] {
+    display: none;
+}

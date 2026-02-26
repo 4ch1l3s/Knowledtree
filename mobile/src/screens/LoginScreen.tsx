@@ -1,16 +1,20 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, TextStyle } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../theme';
+import { scale } from '../utils/scale';
 
 const LoginScreen = () => {
+    // ── Quản lý state form đăng nhập ──
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useContext(AuthContext);
-    const { theme } = useTheme();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const { login } = useContext(AuthContext);
+    const { theme } = useTheme();
+
+    // ── Xử lý đăng nhập: gọi AuthContext.login, bắt lỗi hiển thị ──
     const handleLogin = async () => {
         setIsSubmitting(true);
         setError(null);
@@ -25,27 +29,103 @@ const LoginScreen = () => {
         }
     };
 
+    // ── Style động: dùng theme tokens đã responsive tự động ──
+    const dynamicStyles = {
+        // Bố cục toàn màn hình, căn giữa nội dung
+        container: {
+            flex: 1,
+            justifyContent: 'center' as const,
+            padding: theme.spacing.lg,
+            backgroundColor: theme.colors.background,
+        },
+        // Card chứa form đăng nhập
+        card: {
+            padding: theme.spacing.xl,
+            borderRadius: theme.borderRadius.xl,
+            backgroundColor: theme.colors.surface,
+            ...theme.shadows.lg,
+        },
+        // Tiêu đề app
+        title: {
+            fontSize: theme.typography.fontSizeXxl,
+            fontWeight: theme.typography.fontWeightBold as TextStyle['fontWeight'],
+            marginBottom: theme.spacing.sm,
+            textAlign: 'center' as const,
+            color: theme.colors.primary,
+        },
+        // Phụ đề hướng dẫn
+        subtitle: {
+            fontSize: theme.typography.fontSizeMd,
+            marginBottom: theme.spacing.xl,
+            textAlign: 'center' as const,
+            color: theme.colors.textSecondary,
+        },
+        // Nhóm label + input
+        inputContainer: {
+            marginBottom: scale.vs(20),
+        },
+        // Nhãn trường nhập
+        label: {
+            fontSize: theme.typography.fontSizeSm,
+            fontWeight: '600' as TextStyle['fontWeight'],
+            marginBottom: theme.spacing.sm,
+            color: theme.colors.text,
+        },
+        // Ô nhập liệu
+        input: {
+            borderWidth: 1,
+            paddingVertical: scale.vs(14),
+            paddingHorizontal: theme.spacing.md,
+            borderRadius: theme.borderRadius.lg,
+            fontSize: theme.typography.fontSizeMd,
+            backgroundColor: theme.colors.backgroundSecondary,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+        },
+        // Khung hiển thị lỗi đăng nhập
+        errorContainer: {
+            padding: theme.spacing.md - scale.s(4),
+            borderRadius: theme.borderRadius.md,
+            marginBottom: theme.spacing.md,
+            backgroundColor: theme.colors.errorLight,
+        },
+        errorText: {
+            fontSize: theme.typography.fontSizeSm,
+            textAlign: 'center' as const,
+            fontWeight: theme.typography.fontWeightMedium as TextStyle['fontWeight'],
+            color: theme.colors.error,
+        },
+        // Nút đăng nhập
+        button: {
+            paddingVertical: theme.spacing.md,
+            borderRadius: theme.borderRadius.lg,
+            alignItems: 'center' as const,
+            marginTop: theme.spacing.sm,
+            backgroundColor: theme.colors.primary,
+        },
+        buttonText: {
+            fontSize: theme.typography.fontSizeMd,
+            fontWeight: theme.typography.fontWeightBold as TextStyle['fontWeight'],
+            color: theme.colors.onPrimary,
+        },
+    };
+
+    // ── Giao diện: form đăng nhập đơn giản ──
     return (
         <KeyboardAvoidingView
-            style={[styles.container, { backgroundColor: theme.colors.background }]}
+            style={dynamicStyles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-            <View style={[styles.card, { backgroundColor: theme.colors.surface }, theme.shadows.lg]}>
-                <Text style={[styles.title, { color: theme.colors.primary }]}>
-                    🌿 Knowledtree
-                </Text>
-                <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-                    Đăng nhập vào tài khoản
-                </Text>
+            <View style={dynamicStyles.card}>
+                {/* Tiêu đề và phụ đề */}
+                <Text style={dynamicStyles.title}>Knowledtree</Text>
+                <Text style={dynamicStyles.subtitle}>Đăng nhập vào tài khoản</Text>
 
-                <View style={styles.inputContainer}>
-                    <Text style={[styles.label, { color: theme.colors.text }]}>Tên đăng nhập</Text>
+                {/* Trường tên đăng nhập */}
+                <View style={dynamicStyles.inputContainer}>
+                    <Text style={dynamicStyles.label}>Tên đăng nhập</Text>
                     <TextInput
-                        style={[styles.input, {
-                            backgroundColor: theme.colors.backgroundSecondary,
-                            borderColor: theme.colors.border,
-                            color: theme.colors.text,
-                        }]}
+                        style={dynamicStyles.input}
                         value={username}
                         placeholder="Nhập tên đăng nhập"
                         placeholderTextColor={theme.colors.textTertiary}
@@ -55,14 +135,11 @@ const LoginScreen = () => {
                     />
                 </View>
 
-                <View style={styles.inputContainer}>
-                    <Text style={[styles.label, { color: theme.colors.text }]}>Mật khẩu</Text>
+                {/* Trường mật khẩu */}
+                <View style={dynamicStyles.inputContainer}>
+                    <Text style={dynamicStyles.label}>Mật khẩu</Text>
                     <TextInput
-                        style={[styles.input, {
-                            backgroundColor: theme.colors.backgroundSecondary,
-                            borderColor: theme.colors.border,
-                            color: theme.colors.text,
-                        }]}
+                        style={dynamicStyles.input}
                         value={password}
                         placeholder="Nhập mật khẩu"
                         placeholderTextColor={theme.colors.textTertiary}
@@ -72,92 +149,28 @@ const LoginScreen = () => {
                     />
                 </View>
 
+                {/* Thông báo lỗi (chỉ hiện khi có lỗi) */}
                 {error && (
-                    <View style={[styles.errorContainer, { backgroundColor: theme.colors.errorLight }]}>
-                        <Text style={[styles.error, { color: theme.colors.error }]}>
-                            ⚠️ {error}
-                        </Text>
+                    <View style={dynamicStyles.errorContainer}>
+                        <Text style={dynamicStyles.errorText}>{error}</Text>
                     </View>
                 )}
 
+                {/* Nút đăng nhập (hiện loading khi đang gửi) */}
                 <TouchableOpacity
-                    style={[
-                        styles.button,
-                        { backgroundColor: theme.colors.primary },
-                        isSubmitting && { opacity: 0.6 }
-                    ]}
+                    style={[dynamicStyles.button, isSubmitting && { opacity: 0.6 }]}
                     onPress={handleLogin}
                     disabled={isSubmitting}
                 >
                     {isSubmitting ? (
                         <ActivityIndicator color={theme.colors.onPrimary} />
                     ) : (
-                        <Text style={[styles.buttonText, { color: theme.colors.onPrimary }]}>
-                            Đăng nhập
-                        </Text>
+                        <Text style={dynamicStyles.buttonText}>Đăng nhập</Text>
                     )}
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        padding: 24,
-    },
-    card: {
-        padding: 32,
-        borderRadius: 16,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: '700',
-        marginBottom: 8,
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 16,
-        marginBottom: 32,
-        textAlign: 'center',
-    },
-    inputContainer: {
-        marginBottom: 20,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: 8,
-    },
-    input: {
-        borderWidth: 1,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        fontSize: 16,
-    },
-    errorContainer: {
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 16,
-    },
-    error: {
-        fontSize: 14,
-        textAlign: 'center',
-        fontWeight: '500',
-    },
-    button: {
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 8,
-    },
-    buttonText: {
-        fontSize: 16,
-        fontWeight: '700',
-    },
-});
 
 export default LoginScreen;

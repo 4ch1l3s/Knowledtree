@@ -3,6 +3,7 @@ using System;
 using Knowledtree.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Volo.Abp.EntityFrameworkCore;
@@ -12,9 +13,11 @@ using Volo.Abp.EntityFrameworkCore;
 namespace Knowledtree.Migrations
 {
     [DbContext(typeof(KnowledtreeDbContext))]
-    partial class KnowledtreeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260223202340_Added_UserAvatar")]
+    partial class Added_UserAvatar
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1783,15 +1786,6 @@ namespace Knowledtree.Migrations
                     b.HasKey("TenantId", "Name");
 
                     b.ToTable("AbpTenantConnectionStrings", (string)null);
-                });
-
-            modelBuilder.Entity("Knowledtree.UserAvatars.UserAvatar", b =>
-                {
-                    b.HasOne("Volo.Abp.Identity.IdentityUser", null)
-                        .WithOne()
-                        .HasForeignKey("Knowledtree.UserAvatars.UserAvatar", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Volo.Abp.AuditLogging.AuditLogAction", b =>
