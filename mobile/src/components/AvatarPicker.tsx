@@ -6,12 +6,33 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    Platform,
+    PermissionsAndroid,
     TextStyle,
 } from 'react-native';
 import ImageCropPicker from 'react-native-image-crop-picker';
 import { useTheme } from '../theme';
 import { uploadMyAvatar, UserAvatarDto } from '../api/avatar';
 import { scale } from '../utils/scale';
+
+/** Xin quyền truy cập thư viện ảnh trên Android (runtime permission) */
+const requestGalleryPermission = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') return true;
+
+    const permission =
+        Platform.Version >= 33
+            ? PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES
+            : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
+
+    const status = await PermissionsAndroid.request(permission, {
+        title: 'Quyền truy cập thư viện ảnh',
+        message: 'Ứng dụng cần quyền truy cập ảnh để chọn ảnh đại diện.',
+        buttonPositive: 'Đồng ý',
+        buttonNegative: 'Từ chối',
+    });
+
+    return status === PermissionsAndroid.RESULTS.GRANTED;
+};
 
 interface AvatarPickerProps {
     /** Avatar hiện tại (null = chưa có) */
@@ -37,6 +58,16 @@ const AvatarPicker: React.FC<AvatarPickerProps> = ({
     const initials = displayName.charAt(0).toUpperCase();
 
     const handlePickImage = async () => {
+        // Xin quyền truy cập thư viện ảnh trước khi mở picker
+        const hasPermission = await requestGalleryPermission();
+        if (!hasPermission) {
+            Alert.alert(
+                'Không có quyền',
+                'Vui lòng cấp quyền truy cập thư viện ảnh trong Cài đặt để chọn ảnh đại diện.'
+            );
+            return;
+        }
+
         try {
             const image = await ImageCropPicker.openPicker({
                 width: 250,

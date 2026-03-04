@@ -24,6 +24,16 @@
                         'Người dùng "' + data.record.userName + '" chưa có ảnh đại diện.',
                         'Reset Avatar'
                     );
+                } else if (error && error.status === 403) {
+                    abp.notify.error(
+                        'Bạn không có quyền xóa ảnh đại diện.',
+                        'Reset Avatar'
+                    );
+                } else {
+                    abp.notify.error(
+                        'Đã xảy ra lỗi khi xóa ảnh đại diện. Vui lòng thử lại.',
+                        'Reset Avatar'
+                    );
                 }
             });
         }

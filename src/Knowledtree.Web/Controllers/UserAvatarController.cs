@@ -72,8 +72,7 @@ public class UserAvatarController : AbpControllerBase
     [IgnoreAntiforgeryToken]
     public async Task<IActionResult> GetMyAvatarJson()
     {
-        Logger.LogInformation("[Avatar DEBUG] GetMyAvatarJson HIT. Auth header: {Auth}",
-            Request.Headers["Authorization"].ToString());
+        Logger.LogInformation("[Avatar DEBUG] GetMyAvatarJson HIT");
 
         var avatar = await _userAvatarAppService.GetMyAvatarAsync();
 
@@ -96,6 +95,11 @@ public class UserAvatarController : AbpControllerBase
     public async Task<IActionResult> UploadMobile([FromBody] UserAvatarUploadDto input)
     {
         Logger.LogInformation("[Avatar DEBUG] UploadMobile endpoint HIT");
+
+        if (input == null)
+        {
+            return BadRequest("Request body is required.");
+        }
 
         try
         {

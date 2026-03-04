@@ -13,9 +13,13 @@ export const getMyAvatar = async (): Promise<UserAvatarDto | null> => {
             '/api/user-avatar/my/json'
         );
         return response.data;
-    } catch {
-        // Trả về null nếu chưa có avatar
-        return null;
+    } catch (error: any) {
+        // Chỉ trả null khi server trả 404 (chưa có avatar)
+        if (error?.response?.status === 404) {
+            return null;
+        }
+        // Các lỗi khác (network, 5xx, 401...) phải được propagate
+        throw error;
     }
 };
 
