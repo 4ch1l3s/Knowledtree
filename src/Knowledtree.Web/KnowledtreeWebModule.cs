@@ -160,6 +160,13 @@ public class KnowledtreeWebModule : AbpModule
                     bundle.AddFiles("/js/avatar-upload.js");
                 }
             );
+            options.ScriptBundles.Configure(
+                typeof(Volo.Abp.Identity.Web.Pages.Identity.Users.IndexModel).FullName,
+                bundle =>
+                {
+                    bundle.AddFiles("/Pages/Identity/Users/reset-avatar-extension.js");
+                }
+            );
         });
     }
 

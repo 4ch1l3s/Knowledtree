@@ -9,8 +9,14 @@ public class KnowledtreePermissionDefinitionProvider : PermissionDefinitionProvi
     public override void Define(IPermissionDefinitionContext context)
     {
         var myGroup = context.AddGroup(KnowledtreePermissions.GroupName);
-        //Define your own permissions here. Example:
-        //myGroup.AddPermission(KnowledtreePermissions.MyPermission1, L("Permission:MyPermission1"));
+
+        var userAvatarPermission = myGroup.AddPermission(
+            KnowledtreePermissions.UserAvatars.Default,
+            L("Permission:UserAvatars"));
+
+        userAvatarPermission.AddChild(
+            KnowledtreePermissions.UserAvatars.Delete,
+            L("Permission:UserAvatars.Delete"));
     }
 
     private static LocalizableString L(string name)

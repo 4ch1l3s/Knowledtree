@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, TextStyle, Image } from 'react-native';
+import { View, Text, TouchableOpacity, TextStyle } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../theme';
 import { getMyAvatar, UserAvatarDto } from '../api/avatar';
 import { scale } from '../utils/scale';
+import AvatarPicker from '../components/AvatarPicker';
 
 const HomeScreen = () => {
     const { logout, userInfo } = useContext(AuthContext);
@@ -14,9 +15,6 @@ const HomeScreen = () => {
 
     // ── Tên hiển thị: ưu tiên name > userName > fallback ──
     const displayName = userInfo?.name || userInfo?.userName || 'Người dùng';
-
-    // ── Chữ cái đầu cho placeholder avatar ──
-    const initials = displayName.charAt(0).toUpperCase();
 
     // ── Lấy avatar khi component mount ──
     useEffect(() => {
@@ -55,27 +53,9 @@ const HomeScreen = () => {
             backgroundColor: theme.colors.surface,
             ...theme.shadows.md,
         },
-        // Vùng chứa ảnh đại diện tròn
-        avatarContainer: {
-            width: avatarSize,
-            height: avatarSize,
-            borderRadius: avatarSize / 2,
+        // Khoảng cách dưới avatar
+        avatarWrapper: {
             marginBottom: theme.spacing.md,
-            overflow: 'hidden' as const,
-            backgroundColor: theme.colors.primary,
-            justifyContent: 'center' as const,
-            alignItems: 'center' as const,
-        },
-        // Ảnh đại diện
-        avatarImage: {
-            width: avatarSize,
-            height: avatarSize,
-        },
-        // Chữ cái đầu khi chưa có avatar
-        avatarInitials: {
-            fontSize: scale.ms(32),
-            fontWeight: theme.typography.fontWeightBold as TextStyle['fontWeight'],
-            color: theme.colors.onPrimary,
         },
         // Dòng chào "Xin chào,"
         greeting: {
@@ -117,18 +97,14 @@ const HomeScreen = () => {
         <View style={dynamicStyles.container}>
             {/* Card thông tin người dùng */}
             <View style={dynamicStyles.card}>
-                {/* Ảnh đại diện hoặc placeholder chữ cái đầu */}
-                <View style={dynamicStyles.avatarContainer}>
-                    {avatar ? (
-                        <Image
-                            source={{
-                                uri: `data:${avatar.contentType};base64,${avatar.base64Content}`,
-                            }}
-                            style={dynamicStyles.avatarImage}
-                        />
-                    ) : (
-                        <Text style={dynamicStyles.avatarInitials}>{initials}</Text>
-                    )}
+                {/* Ảnh đại diện — nhấn để thay đổi */}
+                <View style={dynamicStyles.avatarWrapper}>
+                    <AvatarPicker
+                        avatar={avatar}
+                        displayName={displayName}
+                        size={avatarSize}
+                        onAvatarChanged={(newAvatar) => setAvatar(newAvatar)}
+                    />
                 </View>
 
                 <Text style={dynamicStyles.greeting}>Xin chào,</Text>

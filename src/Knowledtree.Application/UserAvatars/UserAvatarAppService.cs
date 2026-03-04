@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Knowledtree.Permissions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
@@ -59,16 +60,6 @@ public class UserAvatarAppService : KnowledtreeAppService, IUserAvatarAppService
     public virtual async Task<UserAvatarDto> UploadAvatarAsync(UserAvatarUploadDto input)
     {
         var userId = CurrentUser.GetId();
-        return await SaveAvatarAsync(userId, input);
-    }
-
-    /// <summary>
-    /// Upload hoặc thay thế ảnh đại diện của user khác (admin)
-    /// </summary>
-    [Authorize("AbpIdentity.Users.Update")]
-    public virtual async Task<UserAvatarDto> UploadAvatarForUserAsync(
-        Guid userId, UserAvatarUploadDto input)
-    {
         return await SaveAvatarAsync(userId, input);
     }
 
@@ -154,6 +145,20 @@ public class UserAvatarAppService : KnowledtreeAppService, IUserAvatarAppService
     public virtual async Task DeleteAvatarAsync()
     {
         var userId = CurrentUser.GetId();
+        var avatar = await _userAvatarRepository.FindByUserIdAsync(userId);
+
+        if (avatar != null)
+        {
+            await _userAvatarRepository.DeleteAsync(avatar);
+        }
+    }
+
+    /// <summary>
+    /// Xóa ảnh đại diện của user khác (admin)
+    /// </summary>
+    [Authorize(KnowledtreePermissions.UserAvatars.Delete)]
+    public virtual async Task DeleteAvatarForUserAsync(Guid userId)
+    {
         var avatar = await _userAvatarRepository.FindByUserIdAsync(userId);
 
         if (avatar != null)
