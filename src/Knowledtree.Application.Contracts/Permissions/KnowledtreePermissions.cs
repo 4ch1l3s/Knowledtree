@@ -4,6 +4,9 @@ public static class KnowledtreePermissions
 {
     public const string GroupName = "Knowledtree";
 
-    //Add your own permission names. Example:
-    //public const string MyPermission1 = GroupName + ".MyPermission1";
+    public static class UserAvatars
+    {
+        public const string Default = GroupName + ".UserAvatars";
+        public const string Delete = Default + ".Delete";
+    }
 }

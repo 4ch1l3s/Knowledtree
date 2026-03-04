@@ -10,11 +10,27 @@ export interface UserAvatarDto {
 export const getMyAvatar = async (): Promise<UserAvatarDto | null> => {
     try {
         const response = await client.get<UserAvatarDto>(
-            '/api/app/user-avatar/my-avatar'
+            '/api/user-avatar/my/json'
         );
         return response.data;
     } catch {
         // Trả về null nếu chưa có avatar
         return null;
     }
+};
+
+// Upload hoặc thay thế ảnh đại diện của người dùng hiện tại
+export const uploadMyAvatar = async (
+    base64Content: string,
+    contentType: string
+): Promise<UserAvatarDto> => {
+    const response = await client.post<UserAvatarDto>(
+        '/api/user-avatar/upload/mobile',
+        {
+            base64Content,
+            contentType,
+            processOnServer: false,
+        }
+    );
+    return response.data;
 };

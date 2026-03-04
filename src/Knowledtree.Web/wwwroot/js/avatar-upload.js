@@ -1,14 +1,13 @@
 // Avatar injection script
 // Tự động inject avatar widget vào:
-// 1. Account/Manage — Personal Info tab
-// 2. Identity Users — Edit user modal
+// 1. Account/Manage — Personal Info tab (upload cho chính mình)
+// 2. Identity Users — Edit user modal (chỉ xem + xóa avatar, admin only)
 (function () {
     'use strict';
 
     document.addEventListener('DOMContentLoaded', function () {
         setupAvatarErrorHandlers();
         injectAccountManageAvatar();
-        observeIdentityUserModal();
     });
 
     // ── 0. Xử lý lỗi tải ảnh avatar (thay thế inline onerror bị CSP chặn) ──
@@ -55,7 +54,7 @@
         }
 
         console.log('[Avatar DEBUG] No server-rendered widget, creating via JS...');
-        createAvatarWidget(personalInfoForm, 'my', '/api/user-avatar/upload', '?', false);
+        createAvatarUploadWidget(personalInfoForm, 'my', '/api/user-avatar/upload', '?', false);
     }
 
     // ── Gắn event handler vào widget server-rendered đã có sẵn ──
@@ -109,16 +108,12 @@
                 headers['RequestVerificationToken'] = csrfToken;
             }
 
-            console.log('[Avatar DEBUG] Upload URL:', uploadUrl);
-            console.log('[Avatar DEBUG] CSRF Token found:', !!csrfToken);
-
             fetch(uploadUrl, {
                 method: 'POST',
                 body: formData,
                 headers: headers
             })
                 .then(function (response) {
-                    console.log('[Avatar DEBUG] Response status:', response.status, response.statusText);
                     if (response.ok) {
                         console.log('[Avatar DEBUG] Upload thành công!');
                         document.querySelectorAll('.lpx-user-avatar').forEach(function (a) {
@@ -150,7 +145,7 @@
                 var modalBody = this.querySelector('.modal-body');
                 if (modalBody) {
                     // Đợi AJAX content load xong
-                    setTimeout(function () { injectModalAvatar(modalBody); }, 500);
+                    setTimeout(function () { injectModalAvatarDelete(modalBody); }, 500);
                 }
             });
         }
@@ -161,7 +156,6 @@
                 mutation.addedNodes.forEach(function (node) {
                     if (node.nodeType !== 1) return;
 
-                    // Tìm modal-body trong node mới thêm
                     var modalBody = null;
                     if (node.classList && node.classList.contains('modal-body')) {
                         modalBody = node;
@@ -170,7 +164,7 @@
                     }
 
                     if (modalBody) {
-                        setTimeout(function () { injectModalAvatar(modalBody); }, 500);
+                        setTimeout(function () { injectModalAvatarDelete(modalBody); }, 500);
                     }
                 });
             });
@@ -179,11 +173,136 @@
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    function injectModalAvatar(modalBody) {
+    // ── 2a. Inject avatar preview + nút "Xóa avatar" vào modal chỉnh sửa user ──
+    function injectModalAvatarDelete(modalBody) {
         // Đã inject rồi thì bỏ qua
-        if (modalBody.querySelector('.avatar-edit-container')) return;
+        if (modalBody.querySelector('.avatar-admin-section')) return;
 
         // ── Tìm userId ──
+        var userId = findUserIdInModal(modalBody);
+        if (!userId) {
+            console.log('[Avatar] Không tìm thấy userId trong modal');
+            return;
+        }
+
+        console.log('[Avatar] Tìm thấy userId:', userId);
+
+        // Tìm tab UserInformation hoặc nội dung đầu tiên
+        var targetContainer = modalBody.querySelector('.tab-pane.active')
+            || modalBody.querySelector('.tab-pane:first-child')
+            || modalBody;
+
+        // Tìm phần tử đầu tiên để chèn phía trước
+        var firstFormGroup = targetContainer.querySelector('.mb-3')
+            || targetContainer.querySelector('.form-group')
+            || targetContainer.querySelector('form > div:first-child');
+
+        if (!firstFormGroup) {
+            firstFormGroup = targetContainer;
+        }
+
+        // Lấy username cho initials
+        var userNameInput = targetContainer.querySelector('input[name*="UserName"]')
+            || targetContainer.querySelector('input[name*="userName"]');
+        var userName = userNameInput ? userNameInput.value : 'U';
+        var initials = userName.charAt(0).toUpperCase();
+
+        var avatarSrc = '/api/user-avatar/' + userId + '?t=' + Date.now();
+
+        // ── Tạo section avatar admin ──
+        var section = document.createElement('div');
+        section.className = 'avatar-admin-section text-center mb-4';
+
+        // Avatar preview (tròn, 100x100)
+        var avatarContainer = document.createElement('div');
+        avatarContainer.style.cssText = 'display:inline-block;position:relative;width:100px;height:100px;border-radius:50%;overflow:hidden;background:#6c757d;margin-bottom:12px;';
+
+        var img = document.createElement('img');
+        img.src = avatarSrc;
+        img.style.cssText = 'width:100px;height:100px;object-fit:cover;display:block;';
+        img.onerror = function () {
+            this.style.display = 'none';
+            placeholderText.style.display = 'flex';
+        };
+        avatarContainer.appendChild(img);
+
+        var placeholderText = document.createElement('div');
+        placeholderText.textContent = initials;
+        placeholderText.style.cssText = 'display:none;width:100px;height:100px;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#fff;background:#6c757d;';
+        avatarContainer.appendChild(placeholderText);
+
+        section.appendChild(avatarContainer);
+
+        // Nút "Xóa avatar"
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'btn btn-outline-danger btn-sm d-block mx-auto';
+        deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>Xóa avatar';
+        deleteBtn.style.cssText = 'min-width:140px;';
+
+        deleteBtn.addEventListener('click', function () {
+            // Confirmation dialog
+            if (!confirm('Bạn có chắc chắn muốn xóa ảnh đại diện của người dùng này?')) {
+                return;
+            }
+
+            deleteBtn.disabled = true;
+            deleteBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i>Đang xóa...';
+
+            var headers = {};
+            var csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                || document.querySelector('meta[name="RequestVerificationToken"]')?.content;
+            if (csrfToken) {
+                headers['RequestVerificationToken'] = csrfToken;
+            }
+
+            fetch('/api/user-avatar/' + userId, {
+                method: 'DELETE',
+                headers: headers
+            })
+                .then(function (response) {
+                    if (response.ok || response.status === 204) {
+                        console.log('[Avatar] Xóa avatar thành công!');
+                        // Ẩn ảnh, hiện placeholder
+                        img.style.display = 'none';
+                        placeholderText.style.display = 'flex';
+                        deleteBtn.innerHTML = '<i class="fa fa-check me-1"></i>Đã xóa';
+                        deleteBtn.classList.remove('btn-outline-danger');
+                        deleteBtn.classList.add('btn-outline-secondary');
+                        deleteBtn.disabled = true;
+                    } else {
+                        response.text().then(function (text) {
+                            console.error('[Avatar] Xóa thất bại:', response.status, text);
+                            if (response.status === 403) {
+                                alert('Bạn không có quyền xóa ảnh đại diện. Vui lòng kiểm tra quyền "User Avatar Management" trong phân quyền.');
+                            } else {
+                                alert('Xóa ảnh đại diện thất bại: ' + response.status);
+                            }
+                        });
+                        deleteBtn.disabled = false;
+                        deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>Xóa avatar';
+                    }
+                })
+                .catch(function (err) {
+                    console.error('[Avatar] Lỗi khi xóa:', err);
+                    alert('Lỗi khi xóa ảnh đại diện.');
+                    deleteBtn.disabled = false;
+                    deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>Xóa avatar';
+                });
+        });
+
+        section.appendChild(deleteBtn);
+
+        // Chèn vào DOM
+        if (firstFormGroup.parentElement) {
+            firstFormGroup.parentElement.insertBefore(section, firstFormGroup);
+        } else {
+            targetContainer.insertBefore(section, targetContainer.firstChild);
+        }
+    }
+
+    // ── Helper: tìm userId trong modal ──
+    function findUserIdInModal(modalBody) {
         var userId = null;
 
         // Cách 1: Từ form action URL (ABP pattern: ?id=GUID)
@@ -211,7 +330,6 @@
         if (!userId) {
             var modal = modalBody.closest('.modal');
             if (modal) {
-                // ABP ModalManager đôi khi lưu URL trong data
                 var modalUrl = modal.querySelector('iframe')?.src
                     || modal.dataset?.url || '';
                 var urlMatch = modalUrl.match(/[?&]id=([0-9a-f-]+)/i);
@@ -219,40 +337,11 @@
             }
         }
 
-        if (!userId) {
-            console.log('[Avatar] Không tìm thấy userId trong modal');
-            return;
-        }
-
-        console.log('[Avatar] Tìm thấy userId:', userId);
-
-        // Tìm tab UserInformation hoặc nội dung đầu tiên
-        var targetContainer = modalBody.querySelector('.tab-pane.active')
-            || modalBody.querySelector('.tab-pane:first-child')
-            || modalBody;
-
-        // Tìm phần tử đầu tiên phía trên UserName
-        var firstFormGroup = targetContainer.querySelector('.mb-3')
-            || targetContainer.querySelector('.form-group')
-            || targetContainer.querySelector('form > div:first-child');
-
-        if (!firstFormGroup) {
-            firstFormGroup = targetContainer;
-        }
-
-        // Lấy username cho initials
-        var userNameInput = targetContainer.querySelector('input[name*="UserName"]')
-            || targetContainer.querySelector('input[name*="userName"]');
-        var userName = userNameInput ? userNameInput.value : 'U';
-        var initials = userName.charAt(0).toUpperCase();
-
-        var uploadUrl = '/api/user-avatar/upload/' + userId;
-
-        createAvatarWidget(firstFormGroup, userId, uploadUrl, initials, true);
+        return userId;
     }
 
-    // ── Helper: tạo avatar widget và chèn vào DOM ──
-    function createAvatarWidget(targetElement, userId, uploadUrl, initials, insertBefore) {
+    // ── Helper: tạo avatar upload widget cho Account/Manage (self upload) ──
+    function createAvatarUploadWidget(targetElement, userId, uploadUrl, initials, insertBefore) {
         initials = initials || '?';
 
         var container = document.createElement('div');
@@ -299,17 +388,14 @@
 
         // Click handler — mở file dialog
         avatarContainer.addEventListener('click', function (e) {
-            if (e.target === fileInput) return; // Tránh infinite loop
+            if (e.target === fileInput) return;
             e.stopPropagation();
-            console.log('[Avatar DEBUG] Click on avatar container, opening file dialog...');
             fileInput.click();
         });
 
         fileInput.addEventListener('change', function () {
             if (!this.files || !this.files[0]) return;
             var file = this.files[0];
-
-            console.log('[Avatar DEBUG] File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
 
             // Preview ngay lập tức
             var reader = new FileReader();
@@ -325,15 +411,11 @@
             formData.append('file', file);
 
             var headers = {};
-            // ABP anti-forgery token
             var csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value
                 || document.querySelector('meta[name="RequestVerificationToken"]')?.content;
             if (csrfToken) {
                 headers['RequestVerificationToken'] = csrfToken;
             }
-
-            console.log('[Avatar DEBUG] Upload URL:', uploadUrl);
-            console.log('[Avatar DEBUG] CSRF Token found:', !!csrfToken);
 
             fetch(uploadUrl, {
                 method: 'POST',
@@ -341,16 +423,13 @@
                 headers: headers
             })
                 .then(function (response) {
-                    console.log('[Avatar DEBUG] Response status:', response.status, response.statusText);
                     if (response.ok) {
-                        console.log('[Avatar DEBUG] Upload thành công!');
-                        // Refresh topbar avatars
                         document.querySelectorAll('.lpx-user-avatar').forEach(function (a) {
                             a.src = a.src.split('?')[0] + '?t=' + Date.now();
                         });
                     } else {
                         response.text().then(function (text) {
-                            console.error('[Avatar DEBUG] Upload thất bại:', response.status, text);
+                            console.error('[Avatar] Upload thất bại:', response.status, text);
                         });
                     }
                 })

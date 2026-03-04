@@ -25,12 +25,12 @@ public interface IUserAvatarAppService : IApplicationService
     Task<UserAvatarDto> UploadAvatarAsync(UserAvatarUploadDto input);
 
     /// <summary>
-    /// Upload hoặc thay thế ảnh đại diện của user khác (admin)
-    /// </summary>
-    Task<UserAvatarDto> UploadAvatarForUserAsync(Guid userId, UserAvatarUploadDto input);
-
-    /// <summary>
     /// Xóa ảnh đại diện của người dùng hiện tại
     /// </summary>
     Task DeleteAvatarAsync();
+
+    /// <summary>
+    /// Xóa ảnh đại diện của user khác (admin)
+    /// </summary>
+    Task DeleteAvatarForUserAsync(Guid userId);
 }

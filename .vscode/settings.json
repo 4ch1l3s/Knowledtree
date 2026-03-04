@@ -2,5 +2,8 @@
     "files.exclude": {
         "mobile/ios": true
     },
-    "java.compile.nullAnalysis.mode": "disabled"
+    "java.compile.nullAnalysis.mode": "disabled",
+    "java.import.exclusions": [
+        "**/node_modules/**"
+    ]
 }

@@ -8,12 +8,12 @@ public static class UserAvatarConsts
     /// <summary>
     /// Chiều rộng ảnh sau khi xử lý (px)
     /// </summary>
-    public const int AvatarWidth = 256;
+    public const int AvatarWidth = 250;
 
     /// <summary>
     /// Chiều cao ảnh sau khi xử lý (px)
     /// </summary>
-    public const int AvatarHeight = 256;
+    public const int AvatarHeight = 250;
 
     /// <summary>
     /// Chất lượng nén JPEG (0-100)
