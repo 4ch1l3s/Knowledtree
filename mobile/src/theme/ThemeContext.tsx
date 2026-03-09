@@ -22,10 +22,8 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const [themeMode, setThemeModeState] = useState<ThemeMode>('auto');
 
     const resolveTheme = (mode: ThemeMode): Theme => {
-        if (mode === 'auto') {
-            return systemScheme === 'dark' ? darkTheme : lightTheme;
-        }
-        return mode === 'dark' ? darkTheme : lightTheme;
+        // Tạm thời vô hiệu hoá dark mode theo yêu cầu, luôn trả về lightTheme
+        return lightTheme;
     };
 
     const [theme, setTheme] = useState<Theme>(resolveTheme(themeMode));

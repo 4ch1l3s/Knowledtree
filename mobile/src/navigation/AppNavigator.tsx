@@ -5,11 +5,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthContext } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
+import RegisterScreen from '../screens/RegisterScreen';
 
 // Define the parameter list for the stack navigator
 export type RootStackParamList = {
     Login: undefined;
     Home: undefined;
+    Register: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -29,7 +31,10 @@ const AppNavigator = () => {
         <NavigationContainer>
             <Stack.Navigator>
                 {userToken == null ? (
-                    <Stack.Screen name="Login" component={LoginScreen} />
+                    <>
+                        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+                    </>
                 ) : (
                     <Stack.Screen name="Home" component={HomeScreen} />
                 )}

@@ -110,24 +110,24 @@ const typography = {
 export const lightTheme: Theme = {
     name: 'light',
     colors: {
-        background: palette.teaGreen,          // #CCFCCB
-        backgroundSecondary: palette.mintCream, // #F1FFFA
+        background: '#FFFFFF',                 // Background trắng (#FFFFFF)
+        backgroundSecondary: palette.mintCream, // #F1FFFA cho nền ô nhập liệu
         backgroundTertiary: palette.mintCream,  // #F1FFFA
-        surface: palette.mintCream,             // #F1FFFA
+        surface: '#FFFFFF',                     // #FFFFFF
         surfaceSecondary: palette.teaGreen,     // #CCFCCB
 
-        primary: palette.fernGreen,             // #568259
+        primary: '#464E47',                     // background button
         primaryLight: palette.celadon,          // #96E6B3
         primaryDark: derived.deepForest,        // #3D5A40
-        onPrimary: palette.mintCream,           // #F1FFFA
+        onPrimary: '#FFFFFF',                   // text trong button (#FFFFFF)
 
         secondary: palette.celadon,             // #96E6B3
         secondaryLight: palette.teaGreen,       // #CCFCCB
-        onSecondary: palette.charcoal,          // #464947
+        onSecondary: '#464E47',                 // #464E47
 
-        text: palette.charcoal,                 // #464947
+        text: '#464E47',                        // màu chữ (#464E47)
         textSecondary: palette.fernGreen,       // #568259
-        textTertiary: palette.celadon,          // #96E6B3
+        textTertiary: palette.charcoal,         // #464947
         textInverse: palette.mintCream,         // #F1FFFA
 
         border: palette.celadon,                // #96E6B3
