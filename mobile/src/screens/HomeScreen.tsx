@@ -107,8 +107,8 @@ const HomeScreen = () => {
                     />
                 </View>
 
-                <Text style={dynamicStyles.greeting}>Xin chào,</Text>
-                <Text style={dynamicStyles.name}>{displayName}!</Text>
+                <Text style={dynamicStyles.greeting}>{displayName} </Text>
+                <Text style={dynamicStyles.name}> Alo, em có phải {displayName} không?</Text>
                 {userInfo?.email && (
                     <Text style={dynamicStyles.email}>{userInfo.email}</Text>
                 )}
@@ -128,7 +128,7 @@ const HomeScreen = () => {
             <TouchableOpacity
                 style={[dynamicStyles.button, {
                     backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
+                    borderColor: theme.colors.primary,
                     borderWidth: 1,
                 }]}
                 onPress={logout}

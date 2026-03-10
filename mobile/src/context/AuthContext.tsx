@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { login as loginApi, LoginResponse, getCurrentUser, UserInfo } from '../api/auth';
+import { login as loginApi, register as registerApi, LoginResponse, getCurrentUser, UserInfo, RegisterInput } from '../api/auth';
 import client from '../api/client';
 
 interface AuthContextType {
@@ -8,6 +8,7 @@ interface AuthContextType {
     userToken: string | null;
     userInfo: UserInfo | null;
     login: (username: string, password: string) => Promise<void>;
+    register: (input: RegisterInput) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -48,6 +49,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             console.log('Login error', e);
             throw e;
         }
+    };
+
+    const register = async (input: RegisterInput) => {
+        await registerApi(input);
+        // Auto-login after successful registration
+        await login(input.userName, input.password);
     };
 
     const logout = async () => {
@@ -97,7 +104,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ login, logout, isLoading, userToken, userInfo }}>
+        <AuthContext.Provider value={{ login, register, logout, isLoading, userToken, userInfo }}>
             {children}
         </AuthContext.Provider>
     );

@@ -40,3 +40,17 @@ export const getCurrentUser = async (): Promise<UserInfo> => {
     const response = await client.get<UserInfo>('/api/account/my-profile');
     return response.data;
 };
+
+export interface RegisterInput {
+    userName: string;
+    emailAddress: string;
+    password: string;
+    appName: string;
+    name?: string;
+    surname?: string;
+    phoneNumber?: string;
+}
+
+export const register = async (input: RegisterInput): Promise<void> => {
+    await client.post('/api/account/register', input);
+};
