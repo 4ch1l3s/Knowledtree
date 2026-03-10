@@ -26,13 +26,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         try {
             const data: LoginResponse = await loginApi(username, password);
             if (data.access_token) {
-                setUserToken(data.access_token);
-                await AsyncStorage.setItem('userToken', data.access_token);
-
-                // Attach token to default client headers
+                // 1. Gắn header cho các request Axios tiếp theo NGAY LẬP TỨC
                 client.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
 
-                // Fetch user info after successful login
+                // 2. Lưu vào AsyncStorage
+                await AsyncStorage.setItem('userToken', data.access_token);
+
+                // 3. Fetch user info (khi đã có config header ở bước 1)
                 try {
                     const user = await getCurrentUser();
                     setUserInfo(user);
@@ -40,6 +40,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 } catch (userError) {
                     console.log('Failed to fetch user info', userError);
                 }
+
+                // 4. Cập nhật state (Kích hoạt quá trình unmount Login, mount HomeScreen)
+                setUserToken(data.access_token);
             }
         } catch (e) {
             console.log('Login error', e);
@@ -61,12 +64,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             let token = await AsyncStorage.getItem('userToken');
             let userInfoStr = await AsyncStorage.getItem('userInfo');
 
-            setUserToken(token);
-            if (userInfoStr) {
-                setUserInfo(JSON.parse(userInfoStr));
-            }
-
             if (token) {
+                // 1. Gắn header trước khi cập nhật state
                 client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
                 // Refresh user info if token exists but userInfo doesn't
@@ -78,8 +77,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     } catch (userError) {
                         console.log('Failed to refresh user info', userError);
                     }
+                } else {
+                    setUserInfo(JSON.parse(userInfoStr));
                 }
             }
+
+            // 2. Kích hoạt render lại
+            setUserToken(token);
+
         } catch (e) {
             console.log('IsLoggedIn error', e);
         } finally {
