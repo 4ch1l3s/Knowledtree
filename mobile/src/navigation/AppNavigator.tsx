@@ -4,14 +4,16 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthContext } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
-import HomeScreen from '../screens/HomeScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import GrowTreeScreen from '../screens/GrowTreeScreen';
 
 // Define the parameter list for the stack navigator
 export type RootStackParamList = {
     Login: undefined;
-    Home: undefined;
     Register: undefined;
+    Profile: undefined;
+    GrowTree: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -36,7 +38,10 @@ const AppNavigator = () => {
                         <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
                     </>
                 ) : (
-                    <Stack.Screen name="Home" component={HomeScreen} />
+                    <>
+                        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="GrowTree" component={GrowTreeScreen} options={{ headerShown: false }} />
+                    </>
                 )}
             </Stack.Navigator>
         </NavigationContainer>

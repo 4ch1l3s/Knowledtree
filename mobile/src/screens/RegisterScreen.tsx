@@ -21,7 +21,9 @@ const RegisterScreen = () => {
     const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [serverError, setServerError] = useState<string | null>(null);
-    const navigation = useNavigation();
+    const [agreeTerms, setAgreeTerms] = useState(false);
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const navigation = useNavigation<any>();
     const { register } = useContext(AuthContext);
     const { theme } = useTheme();
 
@@ -92,6 +94,11 @@ const RegisterScreen = () => {
         setTouched(newTouched);
         setErrors(newErrors);
 
+        if (!agreeTerms) {
+            setServerError("You must agree to the Terms and Conditions.");
+            return;
+        }
+
         if (hasError) return;
 
         setIsSubmitting(true);
@@ -124,74 +131,30 @@ const RegisterScreen = () => {
     };
 
     const dynamicStyles = {
-        safeArea: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
+        safeArea: { flex: 1, backgroundColor: '#F7F9F8' },
+        container: { flexGrow: 1, padding: scale.s(24) },
+        headerText: { fontSize: scale.ms(24), fontWeight: 'bold' as TextStyle['fontWeight'], color: '#157A42', marginBottom: scale.vs(24), marginTop: scale.vs(10) },
+        inputContainer: { marginBottom: scale.vs(24), position: 'relative' as const },
+        label: { fontSize: scale.ms(10), fontWeight: 'bold' as TextStyle['fontWeight'], marginBottom: scale.vs(8), marginLeft: scale.s(16), color: '#464E47', letterSpacing: 0.5 },
+        inputWrapper: {
+            flexDirection: 'row' as const, alignItems: 'center' as const,
+            borderWidth: 1.5, borderColor: '#C4C4C4', borderRadius: scale.s(25),
+            paddingHorizontal: scale.s(16), height: scale.vs(50), backgroundColor: '#FFFFFF'
         },
-        container: {
-            flexGrow: 1,
-            padding: theme.spacing.lg,
-            backgroundColor: theme.colors.background,
-        },
-        header: {
-            flexDirection: 'row' as const,
-            alignItems: 'center' as const,
-            marginBottom: theme.spacing.lg,
-        },
-        backButton: {
-            padding: theme.spacing.xs,
-        },
-        inputContainer: {
-            marginBottom: scale.vs(16),
-        },
-        label: {
-            fontSize: theme.typography.fontSizeSm,
-            fontWeight: '600' as TextStyle['fontWeight'],
-            marginBottom: scale.vs(6),
-            color: theme.colors.text,
-        },
-        input: {
-            borderWidth: 1,
-            paddingVertical: scale.vs(10),
-            paddingHorizontal: theme.spacing.md,
-            borderRadius: theme.borderRadius.md,
-            fontSize: theme.typography.fontSizeMd,
-            backgroundColor: theme.colors.backgroundSecondary, // Màu xanh nhạt F1FFFA
-            borderColor: '#464E47', // 464E47
-            color: theme.colors.text,
-        },
-        inputError: {
-            borderColor: theme.colors.error,
-        },
-        errorText: {
-            color: theme.colors.error,
-            fontSize: theme.typography.fontSizeSm,
-            marginTop: scale.vs(4),
-        },
-        serverErrorContainer: {
-            padding: scale.s(8),
-            borderRadius: theme.borderRadius.md,
-            marginBottom: theme.spacing.md,
-            backgroundColor: theme.colors.errorLight,
-        },
-        serverErrorText: {
-            fontSize: theme.typography.fontSizeSm,
-            textAlign: 'center' as const,
-            fontWeight: '500' as TextStyle['fontWeight'],
-            color: theme.colors.error,
-        },
-        button: {
-            paddingVertical: scale.vs(14),
-            borderRadius: theme.borderRadius.md,
-            alignItems: 'center' as const,
-            marginTop: theme.spacing.lg,
-            backgroundColor: theme.colors.primary,
-        },
-        buttonText: {
-            fontSize: theme.typography.fontSizeMd,
-            fontWeight: 'bold' as TextStyle['fontWeight'],
-            color: theme.colors.onPrimary,
-        },
+        inputErrorWrapper: { borderColor: theme.colors.error },
+        inputIcon: { marginRight: scale.s(10), width: scale.s(20), textAlign: 'center' as const },
+        inputEyeIcon: { padding: scale.s(4) },
+        input: { flex: 1, fontSize: scale.ms(14), color: '#464E47' },
+        errorText: { color: theme.colors.error, fontSize: scale.ms(11), position: 'absolute' as const, bottom: -scale.vs(18), right: scale.s(16), textAlign: 'right' as const },
+        checkboxContainer: { flexDirection: 'row' as const, alignItems: 'center' as const, marginVertical: scale.vs(16), paddingRight: scale.s(20) },
+        checkboxText: { fontSize: scale.ms(11), color: '#464E47', marginLeft: scale.s(10), flex: 1, lineHeight: scale.vs(16) },
+        serverErrorContainer: { padding: scale.s(10), borderRadius: scale.s(10), marginBottom: scale.vs(16), backgroundColor: '#FFEBEE' },
+        serverErrorText: { fontSize: scale.ms(12), textAlign: 'center' as const, fontWeight: '500' as TextStyle['fontWeight'], color: '#D32F2F' },
+        button: { height: scale.vs(50), borderRadius: scale.s(25), flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, marginTop: scale.vs(10), backgroundColor: '#464E47' },
+        buttonText: { fontSize: scale.ms(16), fontWeight: '600' as TextStyle['fontWeight'], color: '#FFFFFF', marginRight: scale.s(8) },
+        loginContainer: { marginTop: scale.vs(30), flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const },
+        loginText: { fontSize: scale.ms(12), color: '#757575' },
+        loginLink: { fontSize: scale.ms(12), color: '#464E47', fontWeight: 'bold' as TextStyle['fontWeight'], marginVertical: scale.s(4) }
     };
 
     return (
@@ -199,45 +162,63 @@ const RegisterScreen = () => {
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <ScrollView contentContainerStyle={dynamicStyles.container} showsVerticalScrollIndicator={false}>
 
-                    <View style={dynamicStyles.header}>
-                        <TouchableOpacity style={dynamicStyles.backButton} onPress={() => navigation.goBack()}>
-                            <FontAwesome name="chevron-left" size={24} color={theme.colors.text} />
-                        </TouchableOpacity>
+                    <Text style={dynamicStyles.headerText}>Create Account</Text>
+
+                    <View style={dynamicStyles.inputContainer}>
+                        <Text style={dynamicStyles.label}>USERNAME</Text>
+                        <View style={[dynamicStyles.inputWrapper, touched.username && errors.username ? dynamicStyles.inputErrorWrapper : null]}>
+                            <FontAwesome name="user-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
+                            <TextInput style={dynamicStyles.input} value={form.username} onChangeText={(v) => handleChange('username', v)} onBlur={() => handleBlur('username')} autoCapitalize="none" placeholder="Enter your username" placeholderTextColor="#A0A0A0" />
+                        </View>
+                        {touched.username && errors.username ? <Text style={dynamicStyles.errorText}>{errors.username}</Text> : null}
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Username *</Text>
-                        <TextInput style={[dynamicStyles.input, touched.username && errors.username ? dynamicStyles.inputError : null]} value={form.username} onChangeText={(v) => handleChange('username', v)} onBlur={() => handleBlur('username')} autoCapitalize="none" />
-                        {touched.username && errors.username ? <Text style={dynamicStyles.errorText}>{errors.username}</Text> : null}
-                    </View>
-                    <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Name *</Text>
-                        <TextInput style={[dynamicStyles.input, touched.name && errors.name ? dynamicStyles.inputError : null]} value={form.name} onChangeText={(v) => handleChange('name', v)} onBlur={() => handleBlur('name')} />
+                        <Text style={dynamicStyles.label}>FULL NAME</Text>
+                        <View style={[dynamicStyles.inputWrapper, touched.name && errors.name ? dynamicStyles.inputErrorWrapper : null]}>
+                            <FontAwesome name="user-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
+                            <TextInput style={dynamicStyles.input} value={form.name} onChangeText={(v) => handleChange('name', v)} onBlur={() => handleBlur('name')} placeholder="Enter your full name" placeholderTextColor="#A0A0A0" />
+                        </View>
                         {touched.name && errors.name ? <Text style={dynamicStyles.errorText}>{errors.name}</Text> : null}
                     </View>
+
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Surname</Text>
-                        <TextInput style={dynamicStyles.input} value={form.surname} onChangeText={(v) => handleChange('surname', v)} />
-                    </View>
-                    <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Email Address *</Text>
-                        <TextInput style={[dynamicStyles.input, touched.email && errors.email ? dynamicStyles.inputError : null]} value={form.email} onChangeText={(v) => handleChange('email', v)} onBlur={() => handleBlur('email')} autoCapitalize="none" keyboardType="email-address" />
+                        <Text style={dynamicStyles.label}>EMAIL ADDRESS</Text>
+                        <View style={[dynamicStyles.inputWrapper, touched.email && errors.email ? dynamicStyles.inputErrorWrapper : null]}>
+                            <FontAwesome name="envelope-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
+                            <TextInput style={dynamicStyles.input} value={form.email} onChangeText={(v) => handleChange('email', v)} onBlur={() => handleBlur('email')} autoCapitalize="none" keyboardType="email-address" placeholder="email@example.com" placeholderTextColor="#A0A0A0" />
+                        </View>
                         {touched.email && errors.email ? <Text style={dynamicStyles.errorText}>{errors.email}</Text> : null}
                     </View>
+
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Phone number</Text>
-                        <TextInput style={dynamicStyles.input} value={form.phone} onChangeText={(v) => handleChange('phone', v)} keyboardType="phone-pad" />
-                    </View>
-                    <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Password *</Text>
-                        <TextInput style={[dynamicStyles.input, touched.password && errors.password ? dynamicStyles.inputError : null]} value={form.password} onChangeText={(v) => handleChange('password', v)} onBlur={() => handleBlur('password')} secureTextEntry />
+                        <Text style={dynamicStyles.label}>PASSWORD</Text>
+                        <View style={[dynamicStyles.inputWrapper, touched.password && errors.password ? dynamicStyles.inputErrorWrapper : null]}>
+                            <FontAwesome name="lock" size={scale.ms(18)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
+                            <TextInput style={dynamicStyles.input} value={form.password} onChangeText={(v) => handleChange('password', v)} onBlur={() => handleBlur('password')} secureTextEntry={!isPasswordVisible} placeholder="Create a password" placeholderTextColor="#A0A0A0" />
+                            <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={dynamicStyles.inputEyeIcon}>
+                                <FontAwesome name={isPasswordVisible ? "eye" : "eye-slash"} size={scale.ms(16)} color="#8A9A8C" />
+                            </TouchableOpacity>
+                        </View>
                         {touched.password && errors.password ? <Text style={dynamicStyles.errorText}>{errors.password}</Text> : null}
                     </View>
+
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>Confirm Password *</Text>
-                        <TextInput style={[dynamicStyles.input, touched.confirmPassword && errors.confirmPassword ? dynamicStyles.inputError : null]} value={form.confirmPassword} onChangeText={(v) => handleChange('confirmPassword', v)} onBlur={() => handleBlur('confirmPassword')} secureTextEntry />
+                        <Text style={dynamicStyles.label}>CONFIRM PASSWORD</Text>
+                        <View style={[dynamicStyles.inputWrapper, touched.confirmPassword && errors.confirmPassword ? dynamicStyles.inputErrorWrapper : null]}>
+                            <FontAwesome name="refresh" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
+                            <TextInput style={dynamicStyles.input} value={form.confirmPassword} onChangeText={(v) => handleChange('confirmPassword', v)} onBlur={() => handleBlur('confirmPassword')} secureTextEntry={!isPasswordVisible} placeholder="Repeat password" placeholderTextColor="#A0A0A0" />
+                            <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={dynamicStyles.inputEyeIcon}>
+                                <FontAwesome name={isPasswordVisible ? "eye" : "eye-slash"} size={scale.ms(16)} color="#8A9A8C" />
+                            </TouchableOpacity>
+                        </View>
                         {touched.confirmPassword && errors.confirmPassword ? <Text style={dynamicStyles.errorText}>{errors.confirmPassword}</Text> : null}
                     </View>
+
+                    <TouchableOpacity style={dynamicStyles.checkboxContainer} onPress={() => setAgreeTerms(!agreeTerms)} activeOpacity={0.8}>
+                        <FontAwesome name={agreeTerms ? "check-square" : "square-o"} size={scale.ms(20)} color={agreeTerms ? "#464E47" : "#A0A0A0"} />
+                        <Text style={dynamicStyles.checkboxText}>I agree to the Terms and Conditions and the Privacy Policy of Kairos Garden.</Text>
+                    </TouchableOpacity>
 
                     {serverError && (
                         <View style={dynamicStyles.serverErrorContainer}>
@@ -246,8 +227,22 @@ const RegisterScreen = () => {
                     )}
 
                     <TouchableOpacity style={[dynamicStyles.button, isSubmitting && { opacity: 0.6 }]} onPress={handleRegister} disabled={isSubmitting}>
-                        {isSubmitting ? <ActivityIndicator color={theme.colors.onPrimary} /> : <Text style={dynamicStyles.buttonText}>Sign up</Text>}
+                        {isSubmitting ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Text style={dynamicStyles.buttonText}>Sign Up</Text>
+                                <FontAwesome name="arrow-right" size={scale.ms(14)} color="#FFFFFF" />
+                            </>
+                        )}
                     </TouchableOpacity>
+
+                    <View style={dynamicStyles.loginContainer}>
+                        <Text style={dynamicStyles.loginText}>Already have an account?</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                            <Text style={dynamicStyles.loginLink}> Log in</Text>
+                        </TouchableOpacity>
+                    </View>
 
                 </ScrollView>
             </KeyboardAvoidingView>

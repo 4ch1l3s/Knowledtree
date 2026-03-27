@@ -1,34 +1,17 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, TextStyle } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../theme';
-import { getMyAvatar, UserAvatarDto } from '../api/avatar';
 import { scale } from '../utils/scale';
 import AvatarPicker from '../components/AvatarPicker';
+import AppLayout from '../components/AppLayout';
 
-const HomeScreen = () => {
-    const { logout, userInfo } = useContext(AuthContext);
+const ProfileScreen = () => {
+    const { logout, userInfo, avatar, setAvatar } = useContext(AuthContext);
     const { theme, isDark, toggleTheme } = useTheme();
-
-    // ── State ảnh đại diện ──
-    const [avatar, setAvatar] = useState<UserAvatarDto | null>(null);
 
     // ── Tên hiển thị: ưu tiên name > userName > fallback ──
     const displayName = userInfo?.name || userInfo?.userName || 'Người dùng';
-
-    // ── Lấy avatar khi component mount ──
-    useEffect(() => {
-        const fetchAvatar = async () => {
-            try {
-                const result = await getMyAvatar();
-                setAvatar(result);
-            } catch {
-                // API lỗi → giữ avatar = null → hiện placeholder initials
-                setAvatar(null);
-            }
-        };
-        fetchAvatar();
-    }, []);
 
     // ── Kích thước avatar ──
     const avatarSize = scale.s(80);
@@ -94,8 +77,9 @@ const HomeScreen = () => {
 
     // ── Giao diện: avatar + thông tin user + nút chuyển theme + đăng xuất ──
     return (
-        <View style={dynamicStyles.container}>
-            {/* Card thông tin người dùng */}
+        <AppLayout title="Profile" iconPosition="left">
+            <View style={dynamicStyles.container}>
+                {/* Card thông tin người dùng */}
             <View style={dynamicStyles.card}>
                 {/* Ảnh đại diện — nhấn để thay đổi */}
                 <View style={dynamicStyles.avatarWrapper}>
@@ -137,8 +121,9 @@ const HomeScreen = () => {
                     Đăng xuất
                 </Text>
             </TouchableOpacity>
-        </View>
+            </View>
+        </AppLayout>
     );
 };
 
-export default HomeScreen;
+export default ProfileScreen;
