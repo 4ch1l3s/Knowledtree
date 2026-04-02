@@ -1,12 +1,15 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login as loginApi, register as registerApi, LoginResponse, getCurrentUser, UserInfo, RegisterInput } from '../api/auth';
+import { getMyAvatar, UserAvatarDto } from '../api/avatar';
 import client from '../api/client';
 
 interface AuthContextType {
     isLoading: boolean;
     userToken: string | null;
     userInfo: UserInfo | null;
+    avatar: UserAvatarDto | null;
+    setAvatar: React.Dispatch<React.SetStateAction<UserAvatarDto | null>>;
     login: (username: string, password: string) => Promise<void>;
     register: (input: RegisterInput) => Promise<void>;
     logout: () => Promise<void>;
@@ -22,6 +25,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [userToken, setUserToken] = useState<string | null>(null);
     const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+    const [avatar, setAvatar] = useState<UserAvatarDto | null>(null);
 
     const login = async (username: string, password: string) => {
         try {
@@ -42,6 +46,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     console.log('Failed to fetch user info', userError);
                 }
 
+                // 3b. Fetch avatar (dùng chung cho cả Profile và Drawer)
+                try {
+                    const avatarData = await getMyAvatar();
+                    setAvatar(avatarData);
+                } catch {
+                    setAvatar(null);
+                }
+
                 // 4. Cập nhật state (Kích hoạt quá trình unmount Login, mount HomeScreen)
                 setUserToken(data.access_token);
             }
@@ -60,6 +72,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const logout = async () => {
         setUserToken(null);
         setUserInfo(null);
+        setAvatar(null);
         await AsyncStorage.removeItem('userToken');
         await AsyncStorage.removeItem('userInfo');
         delete client.defaults.headers.common['Authorization'];
@@ -87,6 +100,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 } else {
                     setUserInfo(JSON.parse(userInfoStr));
                 }
+
+                // Fetch avatar khi khôi phục session
+                try {
+                    const avatarData = await getMyAvatar();
+                    setAvatar(avatarData);
+                } catch {
+                    setAvatar(null);
+                }
             }
 
             // 2. Kích hoạt render lại
@@ -104,7 +125,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ login, register, logout, isLoading, userToken, userInfo }}>
+        <AuthContext.Provider value={{ login, register, logout, isLoading, userToken, userInfo, avatar, setAvatar }}>
             {children}
         </AuthContext.Provider>
     );
