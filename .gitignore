@@ -286,3 +286,7 @@ ios/*.xcodeproj/xcuserdata/
 *.p12
 *.key
 *.mobileprovision
+
+# Logs
+logs.txt
+temp_logs.txt
