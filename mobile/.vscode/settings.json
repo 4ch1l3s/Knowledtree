@@ -1,0 +1,17 @@
+{
+  // Bỏ qua node_modules khi Java LS quét project
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/android/**",
+    "**/ios/**"
+  ],
+  // Tắt auto-detect Gradle project trong node_modules
+  "java.configuration.updateBuildConfiguration": "interactive",
+  // Tắt hẳn Gradle auto-import (React Native không cần Java LS)
+  "java.import.gradle.enabled": false,
+  "java.autobuild.enabled": false,
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  }
+}

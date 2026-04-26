@@ -117,6 +117,14 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 <Text style={[styles.menuText, { color: route.name === 'GrowTree' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'GrowTree' ? 'bold' : '500' }]}>Grow a tree</Text>
                             </TouchableOpacity>
 
+                            <TouchableOpacity
+                                style={[styles.menuItem, route.name === 'Tags' && { backgroundColor: '#DDFBEA' }]}
+                                onPress={() => { onClose(); navigation.navigate('Tags'); }}
+                            >
+                                <FontAwesome name="tag" size={scale.ms(16)} color={route.name === 'Tags' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
+                                <Text style={[styles.menuText, { color: route.name === 'Tags' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Tags' ? 'bold' : '500' }]}>Tags</Text>
+                            </TouchableOpacity>
+
                             {/* Divider line */}
                             <View style={styles.divider} />
 

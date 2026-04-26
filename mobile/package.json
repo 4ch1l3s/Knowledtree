@@ -1,5 +1,5 @@
 {
-  "name": "KnowledtreeMobile",
+  "name": "kairos-garden-mobile",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -7,7 +7,8 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "cd node_modules/@react-native/gradle-plugin && gradlew.bat :shared-testutil:jar"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
