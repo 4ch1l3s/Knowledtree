@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-// Knowledtree.Web runs on port 44353 (HTTPS)
+// Kairos Garden backend chạy ở port 5000 (HTTP)
 const API_PORT = 5000;
 
 // Android Emulator sees host machine as 10.0.2.2

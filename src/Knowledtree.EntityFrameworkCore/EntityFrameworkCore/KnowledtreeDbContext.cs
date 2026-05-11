@@ -1,4 +1,5 @@
-﻿using Knowledtree.UserAvatars;
+using Knowledtree.Tags;
+using Knowledtree.UserAvatars;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Volo.Abp.EntityFrameworkCore.Modeling;
@@ -30,6 +31,9 @@ public class KnowledtreeDbContext :
 
     // Ảnh đại diện người dùng
     public DbSet<UserAvatar> UserAvatars { get; set; }
+    
+    // Bảng Tags
+    public DbSet<Tag> Tags { get; set; }
 
     #region Entities from the modules
 
@@ -95,6 +99,20 @@ public class KnowledtreeDbContext :
             // Mỗi user chỉ có 1 avatar — FK cascade delete khi xóa user
             b.HasOne<IdentityUser>().WithOne().HasForeignKey<UserAvatar>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             b.HasIndex(x => x.UserId).IsUnique();
+        });
+
+        // Cấu hình bảng Tags
+        builder.Entity<Tag>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "Tags", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention(); // Tự động mapping PK, CreationTime, IsDeleted,...
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(TagConsts.MaxNameLength);
+            b.Property(x => x.ColorCode).IsRequired().HasMaxLength(TagConsts.MaxColorCodeLength);
+            b.Property(x => x.UserId).IsRequired();
+
+            // Mối quan hệ N-1 với IdentityUser, cascade delete
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

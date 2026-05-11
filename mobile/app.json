@@ -1,4 +1,15 @@
 {
-  "name": "KnowledtreeMobile",
-  "displayName": "KnowledtreeMobile"
+  "name": "KairosGarden",
+  "displayName": "Kairos Garden",
+  "expo": {
+    "plugins": [
+      [
+        "expo-community-image-editor",
+        {
+          "photosPermission": "KairosGarden needs access to your photos to let you share them with your friends.",
+          "cameraPermission": "KairosGarden needs access to your camera to let you take photos."
+        }
+      ]
+    ]
+  }
 }
