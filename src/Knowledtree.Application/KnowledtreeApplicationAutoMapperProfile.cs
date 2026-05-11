@@ -1,4 +1,5 @@
 using AutoMapper;
+using Knowledtree.Friendships;
 using Knowledtree.Tags;
 
 namespace Knowledtree;
@@ -13,5 +14,8 @@ public class KnowledtreeApplicationAutoMapperProfile : Profile
 
         // Tag -> TagDto
         CreateMap<Tag, TagDto>();
+
+        // Friendship -> FriendshipDto
+        CreateMap<Friendship, FriendshipDto>();
     }
 }

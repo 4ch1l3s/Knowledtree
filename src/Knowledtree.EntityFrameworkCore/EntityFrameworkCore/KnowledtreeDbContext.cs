@@ -1,3 +1,4 @@
+using Knowledtree.Friendships;
 using Knowledtree.Tags;
 using Knowledtree.UserAvatars;
 using Microsoft.EntityFrameworkCore;
@@ -32,8 +33,11 @@ public class KnowledtreeDbContext :
     // Ảnh đại diện người dùng
     public DbSet<UserAvatar> UserAvatars { get; set; }
     
-    // Bảng Tags
+    // Bang Tags
     public DbSet<Tag> Tags { get; set; }
+
+    // Bang quan he ban be
+    public DbSet<Friendship> Friendships { get; set; }
 
     #region Entities from the modules
 
@@ -111,8 +115,33 @@ public class KnowledtreeDbContext :
             b.Property(x => x.ColorCode).IsRequired().HasMaxLength(TagConsts.MaxColorCodeLength);
             b.Property(x => x.UserId).IsRequired();
 
-            // Mối quan hệ N-1 với IdentityUser, cascade delete
+            // Moi quan he N-1 voi IdentityUser, cascade delete
             b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Cau hinh bang Friendships
+        builder.Entity<Friendship>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "Friendships", KnowledtreeConsts.DbSchema, t =>
+            {
+                // Khong cho phep tu ket ban voi chinh minh
+                t.HasCheckConstraint("CK_Friendship_NotSelf", "\"UserId\" != \"FriendId\"");
+            });
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.FriendId).IsRequired();
+            b.Property(x => x.Status).IsRequired();
+
+            // FK cascade delete khi xoa user
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.FriendId).OnDelete(DeleteBehavior.Cascade);
+
+            // Unique index: moi cap user chi co 1 record
+            b.HasIndex(x => new { x.UserId, x.FriendId }).IsUnique();
+
+            // Index cho truy van nguoc (tim loi moi gui cho minh)
+            b.HasIndex(x => x.FriendId);
         });
     }
 }
