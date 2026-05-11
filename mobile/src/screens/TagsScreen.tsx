@@ -15,6 +15,7 @@ import {
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
 import AppLayout from '../components/AppLayout';
+import Icon from 'react-native-vector-icons/Feather';
 import { AuthContext } from '../context/AuthContext';
 import {
     TagDto,
@@ -45,6 +46,7 @@ const TagsScreen = () => {
     const [tags, setTags] = useState<TagDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showMenuId, setShowMenuId] = useState<number | null>(null);
 
@@ -71,9 +73,17 @@ const TagsScreen = () => {
         loadTags();
     }, [loadTags]);
 
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
     // Loc tags theo search
     const filteredTags = tags.filter(tag =>
-        tag.name.toLowerCase().includes(searchQuery.toLowerCase())
+        tag.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     );
 
     // Tao tag moi
@@ -190,11 +200,11 @@ const TagsScreen = () => {
         <AppLayout title="Tags" iconPosition="left">
             <Pressable style={styles.container} onPress={dismissMenu}>
                 {/* Search bar */}
-                <View style={[styles.searchContainer, { backgroundColor: '#F5F5F5' }]}>
-                    <Text style={styles.searchIcon}>Q</Text>
+                <View style={[styles.searchContainer, { backgroundColor: '#EEF6EC' }]}>
+                    <Icon name="search" style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Search existing tags.."
+                        placeholder="Search existing tags..."
                         placeholderTextColor="#AAAAAA"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -318,21 +328,20 @@ const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderRadius: scale.s(25),
-        paddingHorizontal: scale.s(16),
-        paddingVertical: scale.vs(10),
+        borderRadius: scale.s(8),
+        paddingHorizontal: scale.s(18),
+        paddingVertical: scale.vs(12),
         marginTop: scale.vs(8),
         marginBottom: scale.vs(16),
     },
     searchIcon: {
-        fontSize: scale.ms(16),
-        color: '#AAAAAA',
-        marginRight: scale.s(8),
-        fontWeight: 'bold',
+        fontSize: scale.ms(20),
+        color: '#888888',
+        marginRight: scale.s(10),
     },
     searchInput: {
         flex: 1,
-        fontSize: scale.ms(14),
+        fontSize: scale.ms(15),
         color: '#333333',
         padding: 0,
     },
@@ -427,7 +436,7 @@ const styles = StyleSheet.create({
         right: scale.s(20),
         width: scale.s(56),
         height: scale.s(56),
-        borderRadius: scale.s(28),
+        borderRadius: scale.s(16),
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
@@ -450,7 +459,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#E2EAE1',
         borderTopLeftRadius: scale.s(20),
         borderTopRightRadius: scale.s(20),
         paddingHorizontal: scale.s(24),
@@ -477,6 +486,7 @@ const styles = StyleSheet.create({
         marginBottom: scale.vs(8),
     },
     modalInput: {
+        backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#E0E0E0',
         borderRadius: scale.s(8),

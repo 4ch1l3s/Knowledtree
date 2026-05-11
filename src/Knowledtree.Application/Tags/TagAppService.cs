@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Users;
 
@@ -50,7 +51,7 @@ public class TagAppService : KnowledtreeAppService, ITagAppService
         var userId = CurrentUser.GetId();
         var tag = await _tagRepository.FindAsync(id);
 
-        // Gop 2 truong hop (khong ton tai + khong phai cua minh) thanh 1 response
+        // Gop 2 truong hop thanh 1 response
         if (tag == null || tag.UserId != userId)
         {
             throw new EntityNotFoundException(typeof(Tag), id);
@@ -71,7 +72,7 @@ public class TagAppService : KnowledtreeAppService, ITagAppService
         var userId = CurrentUser.GetId();
         var tag = await _tagRepository.FindAsync(id);
 
-        // Gop 2 truong hop (khong ton tai + khong phai cua minh) thanh 1 response
+        // Gop 2 truong hop thanh 1 response
         if (tag == null || tag.UserId != userId)
         {
             throw new EntityNotFoundException(typeof(Tag), id);
