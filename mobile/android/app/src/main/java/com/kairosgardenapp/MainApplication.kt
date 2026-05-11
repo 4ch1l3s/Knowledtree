@@ -1,4 +1,4 @@
-package com.knowledtreemobile
+package com.kairosgardenapp
 
 import android.app.Application
 import com.facebook.react.PackageList

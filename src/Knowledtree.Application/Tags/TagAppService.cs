@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Volo.Abp;
+using Volo.Abp.Domain.Entities;
 using Volo.Abp.Users;
 
 namespace Knowledtree.Tags;
@@ -48,12 +48,12 @@ public class TagAppService : KnowledtreeAppService, ITagAppService
     public virtual async Task<TagDto> UpdateAsync(int id, CreateUpdateTagDto input)
     {
         var userId = CurrentUser.GetId();
-        var tag = await _tagRepository.GetAsync(id);
+        var tag = await _tagRepository.FindAsync(id);
 
-        // Chi cho phep sua tag cua chinh minh
-        if (tag.UserId != userId)
+        // Gop 2 truong hop (khong ton tai + khong phai cua minh) thanh 1 response
+        if (tag == null || tag.UserId != userId)
         {
-            throw new UserFriendlyException("Ban khong co quyen sua tag nay.");
+            throw new EntityNotFoundException(typeof(Tag), id);
         }
 
         tag.Name = input.Name;
@@ -69,12 +69,12 @@ public class TagAppService : KnowledtreeAppService, ITagAppService
     public virtual async Task DeleteAsync(int id)
     {
         var userId = CurrentUser.GetId();
-        var tag = await _tagRepository.GetAsync(id);
+        var tag = await _tagRepository.FindAsync(id);
 
-        // Chi cho phep xoa tag cua chinh minh
-        if (tag.UserId != userId)
+        // Gop 2 truong hop (khong ton tai + khong phai cua minh) thanh 1 response
+        if (tag == null || tag.UserId != userId)
         {
-            throw new UserFriendlyException("Ban khong co quyen xoa tag nay.");
+            throw new EntityNotFoundException(typeof(Tag), id);
         }
 
         await _tagRepository.DeleteAsync(tag);
