@@ -219,7 +219,7 @@ const TagsScreen = () => {
 
     return (
         <AppLayout title="Tags" iconPosition="left">
-            <View style={styles.container} onTouchStart={dismissMenu}>
+            <Pressable style={styles.container} onPress={dismissMenu}>
                 {/* Search bar */}
                 <View style={[styles.searchContainer, { backgroundColor: '#EEF6EC' }]}>
                     <Icon name="search" style={styles.searchIcon} />
@@ -267,7 +267,7 @@ const TagsScreen = () => {
                 >
                     <Text style={styles.fabText}>+</Text>
                 </TouchableOpacity>
-            </View>
+            </Pressable>
 
             {/* Modal tao/sua tag */}
             <Modal
