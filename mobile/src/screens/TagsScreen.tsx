@@ -56,6 +56,9 @@ const TagsScreen = () => {
     const [editingTag, setEditingTag] = useState<TagDto | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
+    const [page, setPage] = useState(1);
+    const PAGE_SIZE = 20;
+
     // Load tags
     const loadTags = useCallback(async () => {
         try {
@@ -81,10 +84,28 @@ const TagsScreen = () => {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+    // Reset page khi search thay doi
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedSearchQuery, tags]);
+
     // Loc tags theo search
-    const filteredTags = tags.filter(tag =>
-        tag.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-    );
+    const filteredTags = React.useMemo(() => {
+        return tags.filter(tag =>
+            tag.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        );
+    }, [tags, debouncedSearchQuery]);
+
+    // Phan trang frontend
+    const displayedTags = React.useMemo(() => {
+        return filteredTags.slice(0, page * PAGE_SIZE);
+    }, [filteredTags, page]);
+
+    const handleLoadMore = () => {
+        if (page * PAGE_SIZE < filteredTags.length) {
+            setPage(prev => prev + 1);
+        }
+    };
 
     // Tao tag moi
     const handleCreate = async () => {
@@ -226,12 +247,15 @@ const TagsScreen = () => {
                     </View>
                 ) : (
                     <FlatList
-                        data={filteredTags}
+                        data={displayedTags}
                         keyExtractor={(item) => item.id.toString()}
                         renderItem={renderTagItem}
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
                         ItemSeparatorComponent={() => <View style={styles.separator} />}
+                        onScroll={dismissMenu}
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.5}
                     />
                 )}
 
