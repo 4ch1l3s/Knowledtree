@@ -118,6 +118,14 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                             </TouchableOpacity>
 
                             <TouchableOpacity
+                                style={[styles.menuItem, route.name === 'Friend' && { backgroundColor: '#DDFBEA' }]}
+                                onPress={() => { onClose(); navigation.navigate('Friend'); }}
+                            >
+                                <FontAwesome name="users" size={scale.ms(16)} color={route.name === 'Friend' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
+                                <Text style={[styles.menuText, { color: route.name === 'Friend' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Friend' ? 'bold' : '500' }]}>Friend</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
                                 style={[styles.menuItem, route.name === 'Tags' && { backgroundColor: '#DDFBEA' }]}
                                 onPress={() => { onClose(); navigation.navigate('Tags'); }}
                             >

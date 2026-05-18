@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Knowledtree.UserAvatars;
 using Microsoft.AspNetCore.Authorization;
+using Volo.Abp.Application.Dtos;
+using Volo.Abp.Identity;
 using Volo.Abp.Users;
 
 namespace Knowledtree.Friendships;
@@ -12,15 +16,24 @@ namespace Knowledtree.Friendships;
 [Authorize]
 public class FriendshipAppService : KnowledtreeAppService, IFriendshipAppService
 {
+    private const int DefaultPageSize = 20;
+    private const int MaxPageSize = 20;
+
     private readonly FriendshipManager _friendshipManager;
     private readonly IFriendshipRepository _friendshipRepository;
+    private readonly IIdentityUserRepository _identityUserRepository;
+    private readonly IUserAvatarRepository _userAvatarRepository;
 
     public FriendshipAppService(
         FriendshipManager friendshipManager,
-        IFriendshipRepository friendshipRepository)
+        IFriendshipRepository friendshipRepository,
+        IIdentityUserRepository identityUserRepository,
+        IUserAvatarRepository userAvatarRepository)
     {
         _friendshipManager = friendshipManager;
         _friendshipRepository = friendshipRepository;
+        _identityUserRepository = identityUserRepository;
+        _userAvatarRepository = userAvatarRepository;
     }
 
     /// <summary>
@@ -73,30 +86,153 @@ public class FriendshipAppService : KnowledtreeAppService, IFriendshipAppService
     /// <summary>
     /// Lay danh sach ban be (da accepted)
     /// </summary>
-    public virtual async Task<List<FriendshipDto>> GetMyFriendsAsync()
+    public virtual async Task<PagedResultDto<FriendshipDto>> GetMyFriendsAsync(PagedResultRequestDto input)
     {
         var userId = CurrentUser.GetId();
-        var list = await _friendshipRepository.GetAcceptedListAsync(userId);
-        return ObjectMapper.Map<List<Friendship>, List<FriendshipDto>>(list);
+        var paging = NormalizePaging(input);
+        var totalCount = await _friendshipRepository.CountAcceptedAsync(userId);
+        if (totalCount == 0)
+        {
+            return new PagedResultDto<FriendshipDto>(0, []);
+        }
+
+        var list = await _friendshipRepository.GetAcceptedListAsync(
+            userId,
+            paging.SkipCount,
+            paging.MaxResultCount);
+
+        return new PagedResultDto<FriendshipDto>(
+            totalCount,
+            await MapToDtosAsync(list, userId));
     }
 
     /// <summary>
     /// Lay danh sach loi moi dang cho (nguoi khac gui cho minh)
     /// </summary>
-    public virtual async Task<List<FriendshipDto>> GetPendingRequestsAsync()
+    public virtual async Task<PagedResultDto<FriendshipDto>> GetPendingRequestsAsync(PagedResultRequestDto input)
     {
         var userId = CurrentUser.GetId();
-        var list = await _friendshipRepository.GetPendingReceivedListAsync(userId);
-        return ObjectMapper.Map<List<Friendship>, List<FriendshipDto>>(list);
+        var paging = NormalizePaging(input);
+        var totalCount = await _friendshipRepository.CountPendingReceivedAsync(userId);
+        if (totalCount == 0)
+        {
+            return new PagedResultDto<FriendshipDto>(0, []);
+        }
+
+        var list = await _friendshipRepository.GetPendingReceivedListAsync(
+            userId,
+            paging.SkipCount,
+            paging.MaxResultCount);
+
+        return new PagedResultDto<FriendshipDto>(
+            totalCount,
+            await MapToDtosAsync(list, userId));
     }
 
     /// <summary>
     /// Lay danh sach loi moi minh da gui
     /// </summary>
-    public virtual async Task<List<FriendshipDto>> GetSentRequestsAsync()
+    public virtual async Task<PagedResultDto<FriendshipDto>> GetSentRequestsAsync(PagedResultRequestDto input)
     {
         var userId = CurrentUser.GetId();
-        var list = await _friendshipRepository.GetPendingSentListAsync(userId);
-        return ObjectMapper.Map<List<Friendship>, List<FriendshipDto>>(list);
+        var paging = NormalizePaging(input);
+        var totalCount = await _friendshipRepository.CountPendingSentAsync(userId);
+        if (totalCount == 0)
+        {
+            return new PagedResultDto<FriendshipDto>(0, []);
+        }
+
+        var list = await _friendshipRepository.GetPendingSentListAsync(
+            userId,
+            paging.SkipCount,
+            paging.MaxResultCount);
+
+        return new PagedResultDto<FriendshipDto>(
+            totalCount,
+            await MapToDtosAsync(list, userId));
+    }
+
+    protected virtual (int SkipCount, int MaxResultCount) NormalizePaging(PagedResultRequestDto input)
+    {
+        var skipCount = Math.Max(input.SkipCount, 0);
+        var maxResultCount = input.MaxResultCount <= 0
+            ? DefaultPageSize
+            : Math.Min(input.MaxResultCount, MaxPageSize);
+
+        return (skipCount, maxResultCount);
+    }
+
+    protected virtual async Task<List<FriendshipDto>> MapToDtosAsync(
+        List<Friendship> friendships,
+        Guid currentUserId)
+    {
+        var result = new List<FriendshipDto>(friendships.Count);
+
+        foreach (var friendship in friendships)
+        {
+            result.Add(await MapToDtoAsync(friendship, currentUserId));
+        }
+
+        return result;
+    }
+
+    protected virtual async Task<FriendshipDto> MapToDtoAsync(
+        Friendship friendship,
+        Guid currentUserId)
+    {
+        var dto = ObjectMapper.Map<Friendship, FriendshipDto>(friendship);
+        var otherUserId = friendship.UserId == currentUserId
+            ? friendship.FriendId
+            : friendship.UserId;
+
+        dto.OtherUserId = otherUserId;
+
+        var user = await _identityUserRepository.FindAsync(otherUserId);
+        dto.OtherUserName = user?.UserName ?? string.Empty;
+        dto.OtherUserDisplayName = BuildDisplayName(user);
+        dto.OtherUserInitials = BuildInitials(dto.OtherUserDisplayName);
+
+        var avatar = await _userAvatarRepository.FindByUserIdAsync(otherUserId);
+        if (avatar != null)
+        {
+            dto.OtherUserAvatarBase64Content = Convert.ToBase64String(avatar.Content);
+            dto.OtherUserAvatarContentType = avatar.ContentType;
+        }
+
+        return dto;
+    }
+
+    protected virtual string BuildDisplayName(IdentityUser? user)
+    {
+        if (user == null)
+        {
+            return string.Empty;
+        }
+
+        var nameParts = new[] { user.Name, user.Surname }
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        return nameParts.Count > 0
+            ? string.Join(" ", nameParts)
+            : user.UserName;
+    }
+
+    protected virtual string BuildInitials(string displayName)
+    {
+        var parts = displayName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (parts.Length == 0)
+        {
+            return "?";
+        }
+
+        if (parts.Length == 1)
+        {
+            return parts[0][0].ToString().ToUpperInvariant();
+        }
+
+        return string.Concat(parts[0][0], parts[^1][0]).ToUpperInvariant();
     }
 }
