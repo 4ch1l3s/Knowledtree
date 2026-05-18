@@ -1,4 +1,5 @@
 using System;
+using Volo.Abp.Application.Dtos;
 
 namespace Knowledtree.Friendships;
 
@@ -6,10 +7,8 @@ namespace Knowledtree.Friendships;
 /// DTO tra ve thong tin quan he ban be
 /// </summary>
 [Serializable]
-public class FriendshipDto
+public class FriendshipDto : EntityDto<Guid>
 {
-    public Guid Id { get; set; }
-
     /// <summary>
     /// Nguoi gui loi moi
     /// </summary>
@@ -23,4 +22,18 @@ public class FriendshipDto
     public FriendshipStatus Status { get; set; }
 
     public DateTime CreationTime { get; set; }
+
+    public DateTime? LastModificationTime { get; set; }
+
+    public Guid OtherUserId { get; set; }
+
+    public string OtherUserName { get; set; } = string.Empty;
+
+    public string OtherUserDisplayName { get; set; } = string.Empty;
+
+    public string OtherUserInitials { get; set; } = string.Empty;
+
+    public string? OtherUserAvatarBase64Content { get; set; }
+
+    public string? OtherUserAvatarContentType { get; set; }
 }

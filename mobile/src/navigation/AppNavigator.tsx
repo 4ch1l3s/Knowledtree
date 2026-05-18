@@ -8,6 +8,7 @@ import RegisterScreen from '../screens/RegisterScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import GrowTreeScreen from '../screens/GrowTreeScreen';
 import TagsScreen from '../screens/TagsScreen';
+import FriendScreen from '../screens/FriendScreen';
 
 // Define the parameter list for the stack navigator
 export type RootStackParamList = {
@@ -16,6 +17,7 @@ export type RootStackParamList = {
     Profile: undefined;
     GrowTree: undefined;
     Tags: undefined;
+    Friend: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +46,7 @@ const AppNavigator = () => {
                         <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="GrowTree" component={GrowTreeScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Tags" component={TagsScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="Friend" component={FriendScreen} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>

@@ -10,9 +10,10 @@ interface AppLayoutProps {
     title: string;
     children: React.ReactNode;
     iconPosition?: 'left' | 'right';
+    rightAction?: React.ReactNode;
 }
 
-const AppLayout: React.FC<AppLayoutProps> = ({ title, children, iconPosition = 'left' }) => {
+const AppLayout: React.FC<AppLayoutProps> = ({ title, children, iconPosition = 'left', rightAction }) => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { theme, isDark } = useTheme();
     const { logout } = useContext(AuthContext);
@@ -25,6 +26,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ title, children, iconPosition = '
                 title={title} 
                 onMenuPress={() => setIsDrawerOpen(true)} 
                 iconPosition={iconPosition}
+                rightAction={rightAction}
             />
             
             <View style={styles.content}>
