@@ -23,6 +23,8 @@ public interface IFriendshipRepository : IBasicRepository<Friendship, Guid>
     /// </summary>
     Task<List<Friendship>> GetAcceptedListAsync(
         Guid userId,
+        int skipCount = 0,
+        int maxResultCount = int.MaxValue,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -30,6 +32,8 @@ public interface IFriendshipRepository : IBasicRepository<Friendship, Guid>
     /// </summary>
     Task<List<Friendship>> GetPendingReceivedListAsync(
         Guid userId,
+        int skipCount = 0,
+        int maxResultCount = int.MaxValue,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -37,12 +41,22 @@ public interface IFriendshipRepository : IBasicRepository<Friendship, Guid>
     /// </summary>
     Task<List<Friendship>> GetPendingSentListAsync(
         Guid userId,
+        int skipCount = 0,
+        int maxResultCount = int.MaxValue,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Dem so ban be da accepted cua 1 user
     /// </summary>
     Task<int> CountAcceptedAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CountPendingReceivedAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CountPendingSentAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 }

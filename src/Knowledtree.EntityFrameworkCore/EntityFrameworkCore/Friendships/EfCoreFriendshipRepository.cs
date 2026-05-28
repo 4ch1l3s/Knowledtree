@@ -42,13 +42,17 @@ public class EfCoreFriendshipRepository
     /// </summary>
     public virtual async Task<List<Friendship>> GetAcceptedListAsync(
         Guid userId,
+        int skipCount = 0,
+        int maxResultCount = int.MaxValue,
         CancellationToken cancellationToken = default)
     {
         var dbSet = await GetDbSetAsync();
         return await dbSet
             .Where(x => x.Status == FriendshipStatus.Accepted
                 && (x.UserId == userId || x.FriendId == userId))
-            .OrderByDescending(x => x.LastModificationTime)
+            .OrderByDescending(x => x.LastModificationTime ?? x.CreationTime)
+            .Skip(skipCount)
+            .Take(maxResultCount)
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
@@ -57,6 +61,8 @@ public class EfCoreFriendshipRepository
     /// </summary>
     public virtual async Task<List<Friendship>> GetPendingReceivedListAsync(
         Guid userId,
+        int skipCount = 0,
+        int maxResultCount = int.MaxValue,
         CancellationToken cancellationToken = default)
     {
         var dbSet = await GetDbSetAsync();
@@ -64,6 +70,8 @@ public class EfCoreFriendshipRepository
             .Where(x => x.FriendId == userId
                 && x.Status == FriendshipStatus.Pending)
             .OrderByDescending(x => x.CreationTime)
+            .Skip(skipCount)
+            .Take(maxResultCount)
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
@@ -72,6 +80,8 @@ public class EfCoreFriendshipRepository
     /// </summary>
     public virtual async Task<List<Friendship>> GetPendingSentListAsync(
         Guid userId,
+        int skipCount = 0,
+        int maxResultCount = int.MaxValue,
         CancellationToken cancellationToken = default)
     {
         var dbSet = await GetDbSetAsync();
@@ -79,6 +89,8 @@ public class EfCoreFriendshipRepository
             .Where(x => x.UserId == userId
                 && x.Status == FriendshipStatus.Pending)
             .OrderByDescending(x => x.CreationTime)
+            .Skip(skipCount)
+            .Take(maxResultCount)
             .ToListAsync(GetCancellationToken(cancellationToken));
     }
 
@@ -93,6 +105,28 @@ public class EfCoreFriendshipRepository
         return await dbSet
             .CountAsync(x => x.Status == FriendshipStatus.Accepted
                 && (x.UserId == userId || x.FriendId == userId),
+            GetCancellationToken(cancellationToken));
+    }
+
+    public virtual async Task<int> CountPendingReceivedAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var dbSet = await GetDbSetAsync();
+        return await dbSet
+            .CountAsync(x => x.FriendId == userId
+                && x.Status == FriendshipStatus.Pending,
+            GetCancellationToken(cancellationToken));
+    }
+
+    public virtual async Task<int> CountPendingSentAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var dbSet = await GetDbSetAsync();
+        return await dbSet
+            .CountAsync(x => x.UserId == userId
+                && x.Status == FriendshipStatus.Pending,
             GetCancellationToken(cancellationToken));
     }
 }

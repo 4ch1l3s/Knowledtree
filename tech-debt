@@ -1,0 +1,74 @@
+# Tech Debt: N+1 Query Trong Danh Sách Bạn Bè
+
+## Trạng Thái
+
+- Trạng thái hiện tại: chưa sửa trong prototype.
+- Mức độ ưu tiên: Medium-High khi chuẩn bị tăng dữ liệu hoặc demo với nhiều user.
+- Mức độ nguy hiểm: không phải lỗi bảo mật, không làm sai dữ liệu, nhưng có thể làm chậm API và tăng tải DB.
+
+## Vị Trí
+
+- `src/Knowledtree.Application/Friendships/FriendshipAppService.cs`
+- `MapToDtosAsync` gọi `MapToDtoAsync` tuần tự cho từng friendship.
+- Trong mỗi `MapToDtoAsync`, service gọi riêng:
+  - `_identityUserRepository.FindAsync(otherUserId)`
+  - `_userAvatarRepository.FindByUserIdAsync(otherUserId)`
+
+## Mô Tả Vấn Đề
+
+Khi load danh sách bạn bè, request kết bạn, hoặc request đã gửi, API lấy một page friendship trước, sau đó map từng item thành DTO. Mỗi item lại truy vấn user và avatar riêng.
+
+Với page size hiện tại là 20, một request có thể tạo ra khoảng:
+
+```text
+1 query đếm totalCount
+1 query lấy danh sách friendship
+20 query lấy user
+20 query lấy avatar
+= khoảng 42 queries/request
+```
+
+Đây là mẫu N+1 query: số query tăng theo số item trong page.
+
+## Ảnh Hưởng Thực Tế
+
+Trong prototype, rủi ro này có thể chấp nhận tạm thời vì:
+
+- `MaxPageSize` đang bị giới hạn ở 20, nên không bùng nổ thành hàng trăm query trong một request.
+- Chức năng friendship có thể chưa có nhiều dữ liệu thật.
+- Vấn đề chủ yếu nằm ở performance, không gây duplicate item hay sai logic nghiệp vụ.
+
+Tuy nhiên, cần xử lý trước khi:
+
+- số lượng bạn bè/request tăng lên;
+- nhiều user cùng mở màn Friend cùng lúc;
+- avatar được lưu và trả về thường xuyên;
+- API bắt đầu chậm do network/DB latency.
+
+## Hướng Xử Lý Đề Xuất
+
+Nên batch preload theo tập `otherUserId` của page hiện tại:
+
+1. Lấy danh sách `otherUserId` từ các friendship trong page.
+2. Gọi user repository một lần để lấy tất cả user liên quan.
+3. Gọi avatar repository một lần để lấy tất cả avatar liên quan.
+4. Tạo dictionary:
+   - `usersById`
+   - `avatarsByUserId`
+5. Map DTO từ dictionary, không query DB trong từng item.
+
+Sau khi sửa, số query kỳ vọng cho một page 20 item sẽ giảm từ khoảng 42 query xuống khoảng:
+
+```text
+1 query đếm totalCount
+1 query lấy danh sách friendship
+1 query lấy users theo batch
+1 query lấy avatars theo batch
+= khoảng 4 queries/request
+```
+
+## Ghi Chú Khi Sửa Sau Này
+
+- Cần thêm method batch vào `IUserAvatarRepository`, vì hiện tại chỉ có `FindByUserIdAsync`.
+- Cần xác nhận API batch của `IIdentityUserRepository` trong ABP 9.0.4 hoặc dùng repository/query provider phù hợp với convention của project.
+- Nếu avatar base64 lớn, nên cân nhắc API avatar riêng hoặc thumbnail/cache thay vì embed base64 trực tiếp vào list response.

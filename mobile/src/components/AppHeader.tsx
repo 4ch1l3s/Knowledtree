@@ -8,9 +8,10 @@ interface AppHeaderProps {
     title: string;
     onMenuPress: () => void;
     iconPosition?: 'left' | 'right';
+    rightAction?: React.ReactNode;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ title, onMenuPress, iconPosition = 'left' }) => {
+const AppHeader: React.FC<AppHeaderProps> = ({ title, onMenuPress, iconPosition = 'left', rightAction }) => {
     const { theme } = useTheme();
 
     // From the design: title and icon use a dark green color 
@@ -36,7 +37,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({ title, onMenuPress, iconPosition 
                 </Text>
             </View>
 
-            {iconPosition === 'right' ? renderMenuButton() : renderPlaceholder()}
+            {rightAction ? (
+                <View style={styles.iconButton}>
+                    {rightAction}
+                </View>
+            ) : (
+                iconPosition === 'right' ? renderMenuButton() : renderPlaceholder()
+            )}
         </View>
     );
 };

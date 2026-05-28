@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 
 namespace Knowledtree.Friendships;
@@ -38,15 +38,15 @@ public interface IFriendshipAppService : IApplicationService
     /// <summary>
     /// Lay danh sach ban be (da accepted)
     /// </summary>
-    Task<List<FriendshipDto>> GetMyFriendsAsync();
+    Task<PagedResultDto<FriendshipDto>> GetMyFriendsAsync(PagedResultRequestDto input);
 
     /// <summary>
     /// Lay danh sach loi moi dang cho (nguoi khac gui cho minh)
     /// </summary>
-    Task<List<FriendshipDto>> GetPendingRequestsAsync();
+    Task<PagedResultDto<FriendshipDto>> GetPendingRequestsAsync(PagedResultRequestDto input);
 
     /// <summary>
     /// Lay danh sach loi moi minh da gui
     /// </summary>
-    Task<List<FriendshipDto>> GetSentRequestsAsync();
+    Task<PagedResultDto<FriendshipDto>> GetSentRequestsAsync(PagedResultRequestDto input);
 }
