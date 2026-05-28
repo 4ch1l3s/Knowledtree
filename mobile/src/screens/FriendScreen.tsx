@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -123,6 +123,11 @@ const FriendScreen = () => {
     const [activeTab, setActiveTab] = useState<FriendTab>('friends');
     const [tabData, setTabData] = useState<Record<FriendTab, FriendTabState>>(createInitialState);
     const [showInitialLoader, setShowInitialLoader] = useState(false);
+    const loadInFlightRef = useRef<Record<FriendTab, boolean>>({
+        friends: false,
+        requests: false,
+        pending: false,
+    });
 
     const activeState = tabData[activeTab];
     const shouldShowFullLoader = activeState.loading && activeState.items.length === 0 && showInitialLoader;
@@ -130,7 +135,7 @@ const FriendScreen = () => {
     const loadTab = useCallback(async (tab: FriendTab, mode: LoadMode) => {
         const current = tabData[tab];
 
-        if (current.loading || current.loadingMore) {
+        if (loadInFlightRef.current[tab] || current.loading || current.loadingMore) {
             return;
         }
 
@@ -139,6 +144,7 @@ const FriendScreen = () => {
         }
 
         const skipCount = mode === 'reset' ? 0 : current.items.length;
+        loadInFlightRef.current[tab] = true;
 
         setTabData(prev => ({
             ...prev,
@@ -178,6 +184,14 @@ const FriendScreen = () => {
 
             Alert.alert('Error', error?.response?.data?.error?.message || 'Cant load friends');
         }
+    }, [tabData]);
+
+    useEffect(() => {
+        TABS.forEach(({ key }) => {
+            if (!tabData[key].loading && !tabData[key].loadingMore) {
+                loadInFlightRef.current[key] = false;
+            }
+        });
     }, [tabData]);
 
     useEffect(() => {
