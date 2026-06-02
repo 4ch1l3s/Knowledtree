@@ -4,9 +4,14 @@ import {
     Alert,
     FlatList,
     Image,
+    KeyboardAvoidingView,
     ListRenderItemInfo,
+    Modal,
+    Platform,
+    Pressable,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -20,9 +25,12 @@ import {
     acceptFriendRequest,
     cancelFriendRequest,
     declineFriendRequest,
+    FriendCandidateDto,
     getFriendRequests,
     getFriends,
     getPendingFriends,
+    searchFriendCandidates,
+    sendFriendRequest,
 } from '../api/friendships';
 
 type FriendTab = 'friends' | 'requests' | 'pending';
@@ -123,6 +131,13 @@ const FriendScreen = () => {
     const [activeTab, setActiveTab] = useState<FriendTab>('friends');
     const [tabData, setTabData] = useState<Record<FriendTab, FriendTabState>>(createInitialState);
     const [showInitialLoader, setShowInitialLoader] = useState(false);
+    const [isAddFriendVisible, setIsAddFriendVisible] = useState(false);
+    const [candidateQuery, setCandidateQuery] = useState('');
+    const [candidateResults, setCandidateResults] = useState<FriendCandidateDto[]>([]);
+    const [candidateLoading, setCandidateLoading] = useState(false);
+    const [candidateLoaded, setCandidateLoaded] = useState(false);
+    const [candidateError, setCandidateError] = useState<string | null>(null);
+    const [sendingCandidateId, setSendingCandidateId] = useState<string | null>(null);
     const loadInFlightRef = useRef<Record<FriendTab, boolean>>({
         friends: false,
         requests: false,
@@ -263,6 +278,62 @@ const FriendScreen = () => {
         loadTab(activeTab, 'more');
     }, [activeTab, loadTab]);
 
+    const openAddFriendModal = useCallback(() => {
+        setCandidateQuery('');
+        setCandidateResults([]);
+        setCandidateLoaded(false);
+        setCandidateError(null);
+        setIsAddFriendVisible(true);
+    }, []);
+
+    const closeAddFriendModal = useCallback(() => {
+        setIsAddFriendVisible(false);
+        setCandidateLoading(false);
+        setSendingCandidateId(null);
+    }, []);
+
+    const handleCandidateSearch = useCallback(async () => {
+        const query = candidateQuery.trim();
+
+        if (!query) {
+            setCandidateResults([]);
+            setCandidateLoaded(false);
+            setCandidateError(null);
+            return;
+        }
+
+        setCandidateLoading(true);
+        setCandidateLoaded(false);
+        setCandidateError(null);
+
+        try {
+            const results = await searchFriendCandidates(query);
+            setCandidateResults(results);
+            setCandidateLoaded(true);
+        } catch (error: any) {
+            setCandidateResults([]);
+            setCandidateLoaded(true);
+            setCandidateError(error?.response?.data?.error?.message || 'Cant search users');
+        } finally {
+            setCandidateLoading(false);
+        }
+    }, [candidateQuery]);
+
+    const handleSendFriendRequest = useCallback(async (candidate: FriendCandidateDto) => {
+        setSendingCandidateId(candidate.id);
+
+        try {
+            await sendFriendRequest(candidate.id);
+            setCandidateResults(prev => prev.filter(item => item.id !== candidate.id));
+            markTabStale('pending');
+            Alert.alert('Request sent', `Friend request sent to ${candidate.displayName || candidate.userName}`);
+        } catch (error: any) {
+            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant send friend request');
+        } finally {
+            setSendingCandidateId(null);
+        }
+    }, [markTabStale]);
+
     const rightAction = useMemo(() => (
         <TouchableOpacity style={styles.headerAction} activeOpacity={0.7}>
             <Icon name="more-vertical" size={scale.ms(20)} color={theme.colors.primaryDark} />
@@ -286,6 +357,59 @@ const FriendScreen = () => {
                 <Text style={styles.avatarInitials}>
                     {item.otherUserInitials || '?'}
                 </Text>
+            </View>
+        );
+    };
+
+    const renderCandidateAvatar = (candidate: FriendCandidateDto) => {
+        if (candidate.avatarBase64Content && candidate.avatarContentType) {
+            return (
+                <Image
+                    source={{
+                        uri: `data:${candidate.avatarContentType};base64,${candidate.avatarBase64Content}`,
+                    }}
+                    style={styles.modalAvatarImage}
+                />
+            );
+        }
+
+        return (
+            <View style={styles.modalAvatarFallback}>
+                <Text style={styles.modalAvatarInitials}>
+                    {candidate.initials || '?'}
+                </Text>
+            </View>
+        );
+    };
+
+    const renderCandidateItem = ({ item }: ListRenderItemInfo<FriendCandidateDto>) => {
+        const isSending = sendingCandidateId === item.id;
+
+        return (
+            <View style={styles.modalCandidateCard}>
+                <View style={styles.modalAvatar}>
+                    {renderCandidateAvatar(item)}
+                </View>
+                <View style={styles.modalCandidateText}>
+                    <Text numberOfLines={1} style={styles.modalCandidateName}>
+                        {item.displayName || item.userName}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.modalCandidateUsername}>
+                        @{item.userName}
+                    </Text>
+                </View>
+                <TouchableOpacity
+                    style={[styles.modalAddCandidateButton, isSending && styles.modalAddCandidateButtonBusy]}
+                    onPress={() => handleSendFriendRequest(item)}
+                    activeOpacity={0.75}
+                    disabled={isSending}
+                >
+                    {isSending ? (
+                        <ActivityIndicator size="small" color="#464E47" />
+                    ) : (
+                        <Icon name="plus" size={scale.ms(26)} color="#464E47" />
+                    )}
+                </TouchableOpacity>
             </View>
         );
     };
@@ -393,10 +517,87 @@ const FriendScreen = () => {
                     />
                 )}
 
-                <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
+                <TouchableOpacity style={styles.addButton} onPress={openAddFriendModal} activeOpacity={0.8}>
                     <Icon name="user-plus" size={scale.ms(16)} color="#FFFFFF" />
                     <Text style={styles.addButtonText}>Add Friend</Text>
                 </TouchableOpacity>
+
+                <Modal
+                    visible={isAddFriendVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={closeAddFriendModal}
+                >
+                    <KeyboardAvoidingView
+                        style={styles.modalOverlay}
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    >
+                        <Pressable style={styles.modalBackdrop} onPress={closeAddFriendModal}>
+                            <Pressable style={styles.modalSurface} onPress={() => undefined}>
+                                <Text style={styles.modalEyebrow}>Add Friend</Text>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>Add Friend</Text>
+                                    <TouchableOpacity
+                                        style={styles.modalCloseButton}
+                                        onPress={closeAddFriendModal}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Icon name="x" size={scale.ms(18)} color="#464E47" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.modalSearchBox}>
+                                    <Icon name="search" size={scale.ms(25)} color="#747D74" />
+                                    <TextInput
+                                        value={candidateQuery}
+                                        onChangeText={setCandidateQuery}
+                                        placeholder="Search username..."
+                                        placeholderTextColor="#A5AAA5"
+                                        style={styles.modalSearchInput}
+                                        returnKeyType="search"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        onSubmitEditing={handleCandidateSearch}
+                                    />
+                                </View>
+
+                                <View style={styles.modalResults}>
+                                    {candidateLoading ? (
+                                        <View style={styles.modalStateRow}>
+                                            <ActivityIndicator color="#464E47" />
+                                        </View>
+                                    ) : candidateError ? (
+                                        <Text style={styles.modalStateText}>{candidateError}</Text>
+                                    ) : candidateLoaded && candidateResults.length === 0 ? (
+                                        <Text style={styles.modalStateText}>No matching users</Text>
+                                    ) : (
+                                        <FlatList
+                                            data={candidateResults}
+                                            keyExtractor={item => item.id}
+                                            renderItem={renderCandidateItem}
+                                            scrollEnabled={candidateResults.length > 3}
+                                            showsVerticalScrollIndicator={false}
+                                        />
+                                    )}
+                                </View>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.modalSearchButton,
+                                        (!candidateQuery.trim() || candidateLoading) && styles.modalSearchButtonDisabled,
+                                    ]}
+                                    onPress={handleCandidateSearch}
+                                    activeOpacity={0.82}
+                                    disabled={!candidateQuery.trim() || candidateLoading}
+                                >
+                                    <Text style={styles.modalSearchButtonText}>
+                                        {candidateLoading ? 'Searching' : 'Search'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </Pressable>
+                        </Pressable>
+                    </KeyboardAvoidingView>
+                </Modal>
             </View>
         </AppLayout>
     );
@@ -553,6 +754,172 @@ const styles = StyleSheet.create({
         fontSize: scale.ms(12),
         fontWeight: '700',
         marginLeft: scale.s(8),
+    },
+    modalOverlay: {
+        flex: 1,
+    },
+    modalBackdrop: {
+        flex: 1,
+        justifyContent: 'center',
+        paddingHorizontal: scale.s(18),
+        backgroundColor: 'rgba(17, 24, 20, 0.28)',
+    },
+    modalSurface: {
+        width: '100%',
+        maxHeight: '82%',
+        borderWidth: 1.5,
+        borderColor: '#4B574D',
+        borderRadius: scale.s(24),
+        paddingHorizontal: scale.s(22),
+        paddingTop: scale.vs(28),
+        paddingBottom: scale.vs(24),
+        backgroundColor: '#E6EEE4',
+    },
+    modalEyebrow: {
+        position: 'absolute',
+        top: -scale.vs(18),
+        left: scale.s(2),
+        color: '#A5AAA5',
+        fontSize: scale.ms(10),
+        fontWeight: '500',
+    },
+    modalHeader: {
+        minHeight: scale.vs(40),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: scale.vs(26),
+    },
+    modalTitle: {
+        flex: 1,
+        color: '#161F1A',
+        fontSize: scale.ms(28),
+        fontWeight: '800',
+    },
+    modalCloseButton: {
+        width: scale.s(36),
+        height: scale.s(36),
+        borderRadius: scale.s(18),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.48)',
+    },
+    modalSearchBox: {
+        minHeight: scale.vs(66),
+        borderRadius: scale.s(16),
+        paddingHorizontal: scale.s(16),
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    modalSearchInput: {
+        flex: 1,
+        minHeight: scale.vs(66),
+        paddingVertical: 0,
+        marginLeft: scale.s(12),
+        color: '#161F1A',
+        fontSize: scale.ms(20),
+        fontWeight: '400',
+    },
+    modalResults: {
+        minHeight: scale.vs(82),
+        maxHeight: scale.vs(254),
+        marginTop: scale.vs(28),
+        marginBottom: scale.vs(24),
+    },
+    modalCandidateCard: {
+        minHeight: scale.vs(76),
+        borderRadius: scale.s(16),
+        paddingHorizontal: scale.s(14),
+        paddingVertical: scale.vs(12),
+        marginBottom: scale.vs(12),
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    modalAvatar: {
+        width: scale.s(46),
+        height: scale.s(46),
+        borderRadius: scale.s(23),
+        overflow: 'hidden',
+        marginRight: scale.s(14),
+    },
+    modalAvatarImage: {
+        width: '100%',
+        height: '100%',
+    },
+    modalAvatarFallback: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#D8C8BD',
+    },
+    modalAvatarInitials: {
+        color: '#6A4F47',
+        fontSize: scale.ms(14),
+        fontWeight: '800',
+    },
+    modalCandidateText: {
+        flex: 1,
+        minWidth: 0,
+        marginRight: scale.s(12),
+    },
+    modalCandidateName: {
+        color: '#161F1A',
+        fontSize: scale.ms(18),
+        fontWeight: '800',
+    },
+    modalCandidateUsername: {
+        marginTop: scale.vs(2),
+        color: '#7C847D',
+        fontSize: scale.ms(11),
+        fontWeight: '600',
+    },
+    modalAddCandidateButton: {
+        width: scale.s(44),
+        height: scale.s(44),
+        borderRadius: scale.s(22),
+        borderWidth: 2.5,
+        borderColor: '#464E47',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    modalAddCandidateButtonBusy: {
+        opacity: 0.6,
+    },
+    modalStateRow: {
+        minHeight: scale.vs(76),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalStateText: {
+        minHeight: scale.vs(76),
+        textAlign: 'center',
+        textAlignVertical: 'center',
+        color: '#7C847D',
+        fontSize: scale.ms(13),
+        fontWeight: '600',
+    },
+    modalSearchButton: {
+        minHeight: scale.vs(58),
+        borderRadius: scale.s(12),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#464E47',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.22,
+        shadowRadius: 6,
+        elevation: 7,
+    },
+    modalSearchButtonDisabled: {
+        opacity: 0.55,
+    },
+    modalSearchButtonText: {
+        color: '#FFFFFF',
+        fontSize: scale.ms(18),
+        fontWeight: '800',
     },
 });
 
