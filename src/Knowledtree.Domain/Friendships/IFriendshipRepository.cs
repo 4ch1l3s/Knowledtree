@@ -19,6 +19,13 @@ public interface IFriendshipRepository : IBasicRepository<Friendship, Guid>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lay cac user da co quan he voi user hien tai, bao gom pending va accepted
+    /// </summary>
+    Task<List<Guid>> GetRelatedUserIdsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Lay danh sach ban be da accepted cua 1 user
     /// </summary>
     Task<List<Friendship>> GetAcceptedListAsync(

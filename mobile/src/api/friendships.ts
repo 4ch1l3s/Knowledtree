@@ -17,6 +17,15 @@ export interface FriendshipDto {
     otherUserAvatarContentType?: string | null;
 }
 
+export interface FriendCandidateDto {
+    id: string;
+    userName: string;
+    displayName: string;
+    initials: string;
+    avatarBase64Content?: string | null;
+    avatarContentType?: string | null;
+}
+
 export interface PagedResultDto<T> {
     totalCount: number;
     items: T[];
@@ -42,6 +51,21 @@ export const getFriendRequests = async (input: FriendshipPageInput): Promise<Pag
 
 export const getPendingFriends = async (input: FriendshipPageInput): Promise<PagedResultDto<FriendshipDto>> =>
     getPaged('/api/friendships/pending', input);
+
+export const searchFriendCandidates = async (
+    filter: string,
+    maxResultCount = 8,
+): Promise<FriendCandidateDto[]> => {
+    const response = await client.get<FriendCandidateDto[]>('/api/friendships/candidates', {
+        params: { filter, maxResultCount },
+    });
+    return response.data;
+};
+
+export const sendFriendRequest = async (friendId: string): Promise<FriendshipDto> => {
+    const response = await client.post<FriendshipDto>('/api/friendships/requests', { friendId });
+    return response.data;
+};
 
 export const acceptFriendRequest = async (id: string): Promise<FriendshipDto> => {
     const response = await client.post<FriendshipDto>(`/api/friendships/${id}/accept`);

@@ -22,6 +22,15 @@ public class FriendshipController : AbpControllerBase
         _friendshipAppService = friendshipAppService;
     }
 
+    [HttpGet("candidates")]
+    public virtual async Task<IActionResult> SearchCandidates(
+        [FromQuery] string? filter = null,
+        [FromQuery] int maxResultCount = 8)
+    {
+        var result = await _friendshipAppService.SearchCandidatesAsync(filter, maxResultCount);
+        return Ok(result);
+    }
+
     [HttpGet("friends")]
     public virtual async Task<IActionResult> GetFriends(
         [FromQuery] int skipCount = 0,

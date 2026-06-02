@@ -47,6 +47,36 @@ public class FriendshipAppService : KnowledtreeAppService, IFriendshipAppService
     }
 
     /// <summary>
+    /// Tim user co the gui loi moi ket ban
+    /// </summary>
+    public virtual async Task<List<FriendCandidateDto>> SearchCandidatesAsync(
+        string? filter,
+        int maxResultCount = 8)
+    {
+        var userId = CurrentUser.GetId();
+        var normalizedFilter = filter?.Trim();
+        var takeCount = Math.Clamp(maxResultCount, 1, 20);
+        var relatedUserIds = await _friendshipRepository.GetRelatedUserIdsAsync(userId);
+        var users = await _identityUserRepository.GetListAsync();
+
+        var candidates = users
+            .Where(user => user.Id != userId && !relatedUserIds.Contains(user.Id))
+            .Where(user => MatchesCandidateFilter(user, normalizedFilter))
+            .OrderBy(user => BuildDisplayName(user))
+            .ThenBy(user => user.UserName)
+            .Take(takeCount)
+            .ToList();
+
+        var result = new List<FriendCandidateDto>(candidates.Count);
+        foreach (var user in candidates)
+        {
+            result.Add(await MapToCandidateDtoAsync(user));
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Dong y loi moi ket ban
     /// </summary>
     public virtual async Task<FriendshipDto> AcceptRequestAsync(Guid friendshipId)
@@ -234,5 +264,42 @@ public class FriendshipAppService : KnowledtreeAppService, IFriendshipAppService
         }
 
         return string.Concat(parts[0][0], parts[^1][0]).ToUpperInvariant();
+    }
+
+    protected virtual bool MatchesCandidateFilter(IdentityUser user, string? filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+        {
+            return true;
+        }
+
+        return ContainsIgnoreCase(user.UserName, filter);
+    }
+
+    protected virtual bool ContainsIgnoreCase(string? value, string filter)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            && value.Contains(filter, StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected virtual async Task<FriendCandidateDto> MapToCandidateDtoAsync(IdentityUser user)
+    {
+        var displayName = BuildDisplayName(user);
+        var dto = new FriendCandidateDto
+        {
+            Id = user.Id,
+            UserName = user.UserName,
+            DisplayName = displayName,
+            Initials = BuildInitials(displayName)
+        };
+
+        var avatar = await _userAvatarRepository.FindByUserIdAsync(user.Id);
+        if (avatar != null)
+        {
+            dto.AvatarBase64Content = Convert.ToBase64String(avatar.Content);
+            dto.AvatarContentType = avatar.ContentType;
+        }
+
+        return dto;
     }
 }

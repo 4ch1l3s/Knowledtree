@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
@@ -14,6 +15,11 @@ public interface IFriendshipAppService : IApplicationService
     /// Gui loi moi ket ban
     /// </summary>
     Task<FriendshipDto> SendRequestAsync(SendFriendRequestDto input);
+
+    /// <summary>
+    /// Tim user co the gui loi moi ket ban
+    /// </summary>
+    Task<List<FriendCandidateDto>> SearchCandidatesAsync(string? filter, int maxResultCount = 8);
 
     /// <summary>
     /// Dong y loi moi ket ban

@@ -37,6 +37,17 @@ public class EfCoreFriendshipRepository
             GetCancellationToken(cancellationToken));
     }
 
+    public virtual async Task<List<Guid>> GetRelatedUserIdsAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var dbSet = await GetDbSetAsync();
+        return await dbSet
+            .Where(x => x.UserId == userId || x.FriendId == userId)
+            .Select(x => x.UserId == userId ? x.FriendId : x.UserId)
+            .ToListAsync(GetCancellationToken(cancellationToken));
+    }
+
     /// <summary>
     /// Lay danh sach ban be da accepted (tim ca 2 chieu)
     /// </summary>
