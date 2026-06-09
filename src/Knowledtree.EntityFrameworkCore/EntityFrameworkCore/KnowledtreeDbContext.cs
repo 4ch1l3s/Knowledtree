@@ -1,6 +1,8 @@
 using Knowledtree.Friendships;
 using Knowledtree.Tags;
+using Knowledtree.Trees;
 using Knowledtree.UserAvatars;
+using Knowledtree.UserWallets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Volo.Abp.EntityFrameworkCore.Modeling;
@@ -32,12 +34,22 @@ public class KnowledtreeDbContext :
 
     // Ảnh đại diện người dùng
     public DbSet<UserAvatar> UserAvatars { get; set; }
+
+    // Vi tien te cua nguoi dung
+    public DbSet<UserWallet> UserWallets { get; set; }
     
     // Bang Tags
     public DbSet<Tag> Tags { get; set; }
 
     // Bang quan he ban be
     public DbSet<Friendship> Friendships { get; set; }
+
+    // Bang cay va planting sessions
+    public DbSet<Tree> Trees { get; set; }
+    public DbSet<TreePool> TreePools { get; set; }
+    public DbSet<TreePoolItem> TreePoolItems { get; set; }
+    public DbSet<UserTree> UserTrees { get; set; }
+    public DbSet<PlantingSession> PlantingSessions { get; set; }
 
     #region Entities from the modules
 
@@ -105,7 +117,22 @@ public class KnowledtreeDbContext :
             b.HasIndex(x => x.UserId).IsUnique();
         });
 
-        // Cấu hình bảng Tags
+        // Cau hinh bang vi tien te nguoi dung
+        builder.Entity<UserWallet>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "UserWallets", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.Coin).IsRequired().HasDefaultValue(0L);
+            b.Property(x => x.Gem).IsRequired().HasDefaultValue(0L);
+            b.Property(x => x.CreationTime).IsRequired();
+
+            b.HasOne<IdentityUser>().WithOne().HasForeignKey<UserWallet>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => x.UserId).IsUnique();
+        });
+
+        // Cau hinh bang Tags
         builder.Entity<Tag>(b =>
         {
             b.ToTable(KnowledtreeConsts.DbTablePrefix + "Tags", KnowledtreeConsts.DbSchema);
@@ -142,6 +169,100 @@ public class KnowledtreeDbContext :
 
             // Index cho truy van nguoc (tim loi moi gui cho minh)
             b.HasIndex(x => x.FriendId);
+        });
+
+        // Cau hinh bang Trees
+        builder.Entity<Tree>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "Trees", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(TreeConsts.MaxNameLength);
+            b.Property(x => x.Description).HasMaxLength(TreeConsts.MaxDescriptionLength);
+            b.Property(x => x.Rarity).IsRequired();
+            b.Property(x => x.ImageKey).IsRequired().HasMaxLength(TreeConsts.MaxImageKeyLength);
+            b.Property(x => x.BaseGoldYield).IsRequired();
+        });
+
+        // Cau hinh bang TreePools
+        builder.Entity<TreePool>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "TreePools", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(TreePoolConsts.MaxNameLength);
+            b.Property(x => x.PoolType).IsRequired();
+            b.Property(x => x.CurrencyType).IsRequired();
+            b.Property(x => x.Cost).IsRequired();
+            b.Property(x => x.CommonRate).IsRequired().HasPrecision(5, 2);
+            b.Property(x => x.RareRate).IsRequired().HasPrecision(5, 2);
+            b.Property(x => x.GoldRate).IsRequired().HasPrecision(5, 2);
+            b.Property(x => x.IsActive).IsRequired();
+
+            b.HasIndex(x => x.IsActive);
+        });
+
+        // Cau hinh bang TreePoolItems
+        builder.Entity<TreePoolItem>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "TreePoolItems", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.TreePoolId).IsRequired();
+            b.Property(x => x.TreeId).IsRequired();
+
+            b.HasOne<TreePool>().WithMany().HasForeignKey(x => x.TreePoolId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<Tree>().WithMany().HasForeignKey(x => x.TreeId).OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => new { x.TreePoolId, x.TreeId }).IsUnique();
+            b.HasIndex(x => x.TreeId);
+        });
+
+        // Cau hinh bang UserTrees
+        builder.Entity<UserTree>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "UserTrees", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.TreeId).IsRequired();
+            b.Property(x => x.FirstObtainedAt).IsRequired();
+            b.Property(x => x.TotalObtainedCount).IsRequired().HasDefaultValue(1);
+            b.Property(x => x.IsPlanted).IsRequired().HasDefaultValue(false);
+
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<Tree>().WithMany().HasForeignKey(x => x.TreeId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<TreePool>().WithMany().HasForeignKey(x => x.FirstObtainedFromPoolId).OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => new { x.UserId, x.TreeId }).IsUnique();
+            b.HasIndex(x => x.TreeId);
+            b.HasIndex(x => x.FirstObtainedFromPoolId);
+        });
+
+        // Cau hinh bang PlantingSessions
+        builder.Entity<PlantingSession>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "PlantingSessions", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.TreePoolId).IsRequired();
+            b.Property(x => x.PlannedDurationMinutes).IsRequired();
+            b.Property(x => x.ClientStartTime).IsRequired();
+            b.Property(x => x.ServerStartTime).IsRequired();
+            b.Property(x => x.Status).IsRequired().HasDefaultValue(PlantingSessionStatus.Growing);
+            b.Property(x => x.DuplicateGemReward).IsRequired().HasDefaultValue(0);
+
+            b.HasOne<IdentityUser>().WithOne().HasForeignKey<PlantingSession>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<TreePool>().WithMany().HasForeignKey(x => x.TreePoolId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<Tree>().WithMany().HasForeignKey(x => x.ResultTreeId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne<Tag>().WithMany().HasForeignKey(x => x.TagId).OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => x.UserId).IsUnique();
+            b.HasIndex(x => x.TreePoolId);
+            b.HasIndex(x => x.ResultTreeId);
+            b.HasIndex(x => x.TagId);
+            b.HasIndex(x => x.Status);
         });
     }
 }

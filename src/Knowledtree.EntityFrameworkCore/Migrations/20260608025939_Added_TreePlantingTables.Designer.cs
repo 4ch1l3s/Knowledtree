@@ -3,6 +3,7 @@ using System;
 using Knowledtree.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Volo.Abp.EntityFrameworkCore;
@@ -12,9 +13,11 @@ using Volo.Abp.EntityFrameworkCore;
 namespace Knowledtree.Migrations
 {
     [DbContext(typeof(KnowledtreeDbContext))]
-    partial class KnowledtreeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260608025939_Added_TreePlantingTables")]
+    partial class Added_TreePlantingTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -209,8 +212,7 @@ namespace Knowledtree.Migrations
 
                     b.HasIndex("TreePoolId");
 
-                    b.HasIndex("UserId")
-                        .IsUnique();
+                    b.HasIndex("UserId");
 
                     b.ToTable("AppPlantingSessions", (string)null);
                 });
@@ -436,40 +438,6 @@ namespace Knowledtree.Migrations
                         .IsUnique();
 
                     b.ToTable("AppUserAvatars", (string)null);
-                });
-
-            modelBuilder.Entity("Knowledtree.UserWallets.UserWallet", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("Coin")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasDefaultValue(0L);
-
-                    b.Property<DateTime>("CreationTime")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("CreationTime");
-
-                    b.Property<long>("Gem")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasDefaultValue(0L);
-
-                    b.Property<DateTime?>("LastModificationTime")
-                        .HasColumnType("timestamp without time zone")
-                        .HasColumnName("LastModificationTime");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("AppUserWallets", (string)null);
                 });
 
             modelBuilder.Entity("Volo.Abp.AuditLogging.AuditLog", b =>
@@ -2251,8 +2219,8 @@ namespace Knowledtree.Migrations
                         .IsRequired();
 
                     b.HasOne("Volo.Abp.Identity.IdentityUser", null)
-                        .WithOne()
-                        .HasForeignKey("Knowledtree.Trees.PlantingSession", "UserId")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -2297,15 +2265,6 @@ namespace Knowledtree.Migrations
                     b.HasOne("Volo.Abp.Identity.IdentityUser", null)
                         .WithOne()
                         .HasForeignKey("Knowledtree.UserAvatars.UserAvatar", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Knowledtree.UserWallets.UserWallet", b =>
-                {
-                    b.HasOne("Volo.Abp.Identity.IdentityUser", null)
-                        .WithOne()
-                        .HasForeignKey("Knowledtree.UserWallets.UserWallet", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
