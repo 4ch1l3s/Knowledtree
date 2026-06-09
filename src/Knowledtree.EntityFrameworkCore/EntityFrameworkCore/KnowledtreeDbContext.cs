@@ -2,6 +2,7 @@ using Knowledtree.Friendships;
 using Knowledtree.Tags;
 using Knowledtree.Trees;
 using Knowledtree.UserAvatars;
+using Knowledtree.UserWallets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Volo.Abp.EntityFrameworkCore.Modeling;
@@ -33,6 +34,9 @@ public class KnowledtreeDbContext :
 
     // Ảnh đại diện người dùng
     public DbSet<UserAvatar> UserAvatars { get; set; }
+
+    // Vi tien te cua nguoi dung
+    public DbSet<UserWallet> UserWallets { get; set; }
     
     // Bang Tags
     public DbSet<Tag> Tags { get; set; }
@@ -113,7 +117,22 @@ public class KnowledtreeDbContext :
             b.HasIndex(x => x.UserId).IsUnique();
         });
 
-        // Cấu hình bảng Tags
+        // Cau hinh bang vi tien te nguoi dung
+        builder.Entity<UserWallet>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "UserWallets", KnowledtreeConsts.DbSchema);
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.Coin).IsRequired().HasDefaultValue(0L);
+            b.Property(x => x.Gem).IsRequired().HasDefaultValue(0L);
+            b.Property(x => x.CreationTime).IsRequired();
+
+            b.HasOne<IdentityUser>().WithOne().HasForeignKey<UserWallet>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(x => x.UserId).IsUnique();
+        });
+
+        // Cau hinh bang Tags
         builder.Entity<Tag>(b =>
         {
             b.ToTable(KnowledtreeConsts.DbTablePrefix + "Tags", KnowledtreeConsts.DbSchema);
