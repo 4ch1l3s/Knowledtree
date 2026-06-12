@@ -3,6 +3,7 @@ using System;
 using Knowledtree.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Volo.Abp.EntityFrameworkCore;
@@ -12,9 +13,11 @@ using Volo.Abp.EntityFrameworkCore;
 namespace Knowledtree.Migrations
 {
     [DbContext(typeof(KnowledtreeDbContext))]
-    partial class KnowledtreeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612113258_AddPackageImageKeyToTreePool")]
+    partial class AddPackageImageKeyToTreePool
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

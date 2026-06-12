@@ -31,4 +31,18 @@ public class Tree : AggregateRoot<int>
         ImageKey = imageKey;
         BaseGoldYield = baseGoldYield;
     }
+
+    public virtual void Update(
+        string name,
+        string? description,
+        TreeRarity rarity,
+        string imageKey,
+        int baseGoldYield)
+    {
+        Name = name;
+        Description = description;
+        Rarity = rarity;
+        ImageKey = imageKey;
+        BaseGoldYield = baseGoldYield;
+    }
 }

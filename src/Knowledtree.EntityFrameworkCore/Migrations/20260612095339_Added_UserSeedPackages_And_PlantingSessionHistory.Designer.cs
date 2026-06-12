@@ -3,6 +3,7 @@ using System;
 using Knowledtree.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Volo.Abp.EntityFrameworkCore;
@@ -12,9 +13,11 @@ using Volo.Abp.EntityFrameworkCore;
 namespace Knowledtree.Migrations
 {
     [DbContext(typeof(KnowledtreeDbContext))]
-    partial class KnowledtreeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612095339_Added_UserSeedPackages_And_PlantingSessionHistory")]
+    partial class Added_UserSeedPackages_And_PlantingSessionHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -303,10 +306,6 @@ namespace Knowledtree.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
-
-                    b.Property<string>("PackageImageKey")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<int>("PoolType")
                         .HasColumnType("integer");

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Knowledtree.Localization;
@@ -60,6 +60,24 @@ public class KnowledtreeMenuContributor : IMenuContributor
 
         administration.SetSubItemOrder(IdentityMenuNames.GroupName, 2);
         administration.SetSubItemOrder(SettingManagementMenus.GroupName, 3);
+
+        // Menu quan ly cay
+        var treeManagement = new ApplicationMenuItem(
+            KnowledtreeMenus.TreeManagement,
+            l["Menu:TreeManagement"],
+            icon: "fas fa-tree"
+        );
+
+        treeManagement.AddItem(new ApplicationMenuItem(
+            KnowledtreeMenus.TreePools,
+            l["Menu:TreePools"],
+            "/tree-pools"
+        ).RequirePermissions(Permissions.KnowledtreePermissions.TreeManagement.TreePools.Default));
+
+        if (treeManagement.Items.Count > 0)
+        {
+            context.Menu.AddItem(treeManagement);
+        }
 
         return Task.CompletedTask;
     }

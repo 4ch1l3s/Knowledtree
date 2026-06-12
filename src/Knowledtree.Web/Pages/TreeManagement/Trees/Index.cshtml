@@ -1,0 +1,256 @@
+@page "/TreeManagement/Trees"
+@using Knowledtree.Trees
+@using Knowledtree.Web.Pages.TreeManagement
+@model Knowledtree.Web.Pages.TreeManagement.Trees.IndexModel
+
+<style>
+    .kt-admin-table {
+        table-layout: fixed;
+    }
+
+    .kt-admin-table th {
+        color: #6b7280;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .kt-admin-table td {
+        vertical-align: middle;
+    }
+
+    .kt-rarity-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 88px;
+        border-radius: 999px;
+        padding: 0.28rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        border: 1px solid transparent;
+    }
+
+    .kt-rarity-common {
+        color: #4b5563;
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+
+    .kt-rarity-rare {
+        color: #075985;
+        background: #e0f2fe;
+        border-color: #7dd3fc;
+    }
+
+    .kt-rarity-gold {
+        color: #854d0e;
+        background: #fef3c7;
+        border-color: #facc15;
+    }
+
+    .kt-actions {
+        display: grid;
+        grid-template-columns: 92px 92px;
+        justify-content: end;
+        gap: 0.5rem;
+        min-width: 196px;
+    }
+
+    .kt-actions form {
+        margin: 0;
+    }
+
+    .kt-actions .btn {
+        width: 92px;
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<abp-card>
+    <abp-card-header>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h2 class="mb-1">Trees</h2>
+                <p class="text-muted mb-0">Create and maintain the tree catalog used by treepools.</p>
+            </div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTreeModal">
+                <i class="fa fa-plus me-1"></i> New Tree
+            </button>
+        </div>
+    </abp-card-header>
+    <abp-card-body>
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        @if (Model.Trees.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="fa fa-tree fa-3x mb-3"></i>
+                <div>No trees have been created yet.</div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle kt-admin-table">
+                    <colgroup>
+                        <col style="width: 34%;" />
+                        <col style="width: 14%;" />
+                        <col style="width: 26%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: 214px;" />
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Rarity</th>
+                        <th>Image Key</th>
+                        <th>Base Gold Yield</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var tree in Model.Trees)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@tree.Name</div>
+                                @if (!string.IsNullOrWhiteSpace(tree.Description))
+                                {
+                                    <div class="text-muted small">@tree.Description</div>
+                                }
+                            </td>
+                            <td>
+                                <span class="kt-rarity-badge @TreeRarityDisplay.GetCssClass(tree.Rarity)">@TreeRarityDisplay.GetLabel(tree.Rarity)</span>
+                            </td>
+                            <td><code>@tree.ImageKey</code></td>
+                            <td>@tree.BaseGoldYield</td>
+                            <td>
+                                <div class="kt-actions">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editTreeModal-@tree.Id">
+                                    <i class="fa fa-edit me-1"></i> Edit
+                                </button>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@tree.Id">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this tree?');">
+                                        <i class="fa fa-trash me-1"></i> Delete
+                                    </button>
+                                </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </abp-card-body>
+</abp-card>
+
+<div class="modal fade" id="createTreeModal" tabindex="-1" aria-labelledby="createTreeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Create">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createTreeModalLabel">New Tree</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label asp-for="CreateInput.Name" class="form-label"></label>
+                        <input asp-for="CreateInput.Name" class="form-control" />
+                        <span asp-validation-for="CreateInput.Name" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="CreateInput.Description" class="form-label"></label>
+                        <textarea asp-for="CreateInput.Description" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="CreateInput.Description" class="text-danger"></span>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="CreateInput.Rarity" class="form-label"></label>
+                            <select asp-for="CreateInput.Rarity" class="form-select">
+                                    @foreach (var rarity in Model.Rarities)
+                                    {
+                                    <option value="@((int)rarity)">@TreeRarityDisplay.GetLabel(rarity)</option>
+                                    }
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="CreateInput.ImageKey" class="form-label"></label>
+                            <input asp-for="CreateInput.ImageKey" class="form-control" />
+                            <span asp-validation-for="CreateInput.ImageKey" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="CreateInput.BaseGoldYield" class="form-label"></label>
+                            <input asp-for="CreateInput.BaseGoldYield" type="number" min="0" class="form-control" />
+                            <span asp-validation-for="CreateInput.BaseGoldYield" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@foreach (var tree in Model.Trees)
+{
+    <div class="modal fade" id="editTreeModal-@tree.Id" tabindex="-1" aria-labelledby="editTreeModalLabel-@tree.Id" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="Update" asp-route-id="@tree.Id">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editTreeModalLabel-@tree.Id">Edit Tree</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="UpdateInput_Name_@tree.Id">Name</label>
+                            <input id="UpdateInput_Name_@tree.Id" name="UpdateInput.Name" value="@tree.Name" class="form-control" maxlength="64" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="UpdateInput_Description_@tree.Id">Description</label>
+                            <textarea id="UpdateInput_Description_@tree.Id" name="UpdateInput.Description" class="form-control" rows="3" maxlength="512">@tree.Description</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="UpdateInput_Rarity_@tree.Id">Rarity</label>
+                                <select id="UpdateInput_Rarity_@tree.Id" name="UpdateInput.Rarity" class="form-select">
+                                    @foreach (var rarity in Model.Rarities)
+                                    {
+                                        <option value="@((int)rarity)" selected="@(tree.Rarity == rarity)">@TreeRarityDisplay.GetLabel(rarity)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="UpdateInput_ImageKey_@tree.Id">Image Key</label>
+                                <input id="UpdateInput_ImageKey_@tree.Id" name="UpdateInput.ImageKey" value="@tree.ImageKey" class="form-control" maxlength="128" required />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" for="UpdateInput_BaseGoldYield_@tree.Id">Base Gold Yield</label>
+                                <input id="UpdateInput_BaseGoldYield_@tree.Id" name="UpdateInput.BaseGoldYield" value="@tree.BaseGoldYield" type="number" min="0" class="form-control" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

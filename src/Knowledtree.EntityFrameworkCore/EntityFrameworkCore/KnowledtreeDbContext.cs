@@ -49,6 +49,7 @@ public class KnowledtreeDbContext :
     public DbSet<TreePool> TreePools { get; set; }
     public DbSet<TreePoolItem> TreePoolItems { get; set; }
     public DbSet<UserTree> UserTrees { get; set; }
+    public DbSet<UserSeedPackage> UserSeedPackages { get; set; }
     public DbSet<PlantingSession> PlantingSessions { get; set; }
 
     #region Entities from the modules
@@ -198,6 +199,7 @@ public class KnowledtreeDbContext :
             b.Property(x => x.RareRate).IsRequired().HasPrecision(5, 2);
             b.Property(x => x.GoldRate).IsRequired().HasPrecision(5, 2);
             b.Property(x => x.IsActive).IsRequired();
+            b.Property(x => x.PackageImageKey).HasMaxLength(TreePoolConsts.MaxPackageImageKeyLength);
 
             b.HasIndex(x => x.IsActive);
         });
@@ -239,6 +241,26 @@ public class KnowledtreeDbContext :
             b.HasIndex(x => x.FirstObtainedFromPoolId);
         });
 
+        // Cau hinh bang UserSeedPackages
+        builder.Entity<UserSeedPackage>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "UserSeedPackages", KnowledtreeConsts.DbSchema, t =>
+            {
+                t.HasCheckConstraint("CK_UserSeedPackage_Quantity_NonNegative", "\"Quantity\" >= 0");
+            });
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.TreePoolId).IsRequired();
+            b.Property(x => x.Quantity).IsRequired().HasDefaultValue(0);
+
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<TreePool>().WithMany().HasForeignKey(x => x.TreePoolId).OnDelete(DeleteBehavior.Restrict);
+
+            b.HasIndex(x => new { x.UserId, x.TreePoolId }).IsUnique();
+            b.HasIndex(x => x.TreePoolId);
+        });
+
         // Cau hinh bang PlantingSessions
         builder.Entity<PlantingSession>(b =>
         {
@@ -253,12 +275,12 @@ public class KnowledtreeDbContext :
             b.Property(x => x.Status).IsRequired().HasDefaultValue(PlantingSessionStatus.Growing);
             b.Property(x => x.DuplicateGemReward).IsRequired().HasDefaultValue(0);
 
-            b.HasOne<IdentityUser>().WithOne().HasForeignKey<PlantingSession>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne<TreePool>().WithMany().HasForeignKey(x => x.TreePoolId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne<Tree>().WithMany().HasForeignKey(x => x.ResultTreeId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne<Tag>().WithMany().HasForeignKey(x => x.TagId).OnDelete(DeleteBehavior.Restrict);
 
-            b.HasIndex(x => x.UserId).IsUnique();
+            b.HasIndex(x => x.UserId);
             b.HasIndex(x => x.TreePoolId);
             b.HasIndex(x => x.ResultTreeId);
             b.HasIndex(x => x.TagId);

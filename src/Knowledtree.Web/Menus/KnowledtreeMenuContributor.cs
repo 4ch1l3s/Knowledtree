@@ -1,6 +1,9 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Knowledtree.Localization;
 using Knowledtree.MultiTenancy;
+using Knowledtree.Permissions;
+using Microsoft.Extensions.DependencyInjection;
+using Volo.Abp.Authorization.Permissions;
 using Volo.Abp.Identity.Web.Navigation;
 using Volo.Abp.SettingManagement.Web.Navigation;
 using Volo.Abp.TenantManagement.Web.Navigation;
@@ -18,10 +21,11 @@ public class KnowledtreeMenuContributor : IMenuContributor
         }
     }
 
-    private Task ConfigureMainMenuAsync(MenuConfigurationContext context)
+    private async Task ConfigureMainMenuAsync(MenuConfigurationContext context)
     {
         var administration = context.Menu.GetAdministration();
         var l = context.GetLocalizer<KnowledtreeResource>();
+        var permissionChecker = context.ServiceProvider.GetRequiredService<IPermissionChecker>();
 
         context.Menu.Items.Insert(
             0,
@@ -44,8 +48,41 @@ public class KnowledtreeMenuContributor : IMenuContributor
         }
 
         administration?.SetSubItemOrder(IdentityMenuNames.GroupName, 2);
-        administration?.SetSubItemOrder(SettingManagementMenuNames.GroupName, 3);
 
-        return Task.CompletedTask;
+        if (administration != null && await permissionChecker.IsGrantedAsync(KnowledtreePermissions.TreeManagement.Default))
+        {
+            var treeManagement = new ApplicationMenuItem(
+                KnowledtreeMenus.TreeManagement,
+                l["Menu:TreeManagement"],
+                icon: "fas fa-seedling",
+                order: 3);
+
+            if (await permissionChecker.IsGrantedAsync(KnowledtreePermissions.TreeManagement.Trees.Default))
+            {
+                treeManagement.AddItem(new ApplicationMenuItem(
+                    KnowledtreeMenus.Trees,
+                    l["Menu:Trees"],
+                    "~/TreeManagement/Trees",
+                    icon: "fas fa-tree",
+                    order: 1));
+            }
+
+            if (await permissionChecker.IsGrantedAsync(KnowledtreePermissions.TreeManagement.TreePools.Default))
+            {
+                treeManagement.AddItem(new ApplicationMenuItem(
+                    KnowledtreeMenus.TreePools,
+                    l["Menu:TreePools"],
+                    "~/TreeManagement/TreePools",
+                    icon: "fas fa-layer-group",
+                    order: 2));
+            }
+
+            if (!treeManagement.IsLeaf)
+            {
+                administration.AddItem(treeManagement);
+            }
+        }
+
+        administration?.SetSubItemOrder(SettingManagementMenuNames.GroupName, 4);
     }
 }
