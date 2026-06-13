@@ -1,5 +1,5 @@
 ## Giới thiệu dự án
-Dự án **Knowledtree** là một ứng dụng hỗ trợ tập trung, được xây dựng dựa trên kiến trúc Domain Driven Design (DDD) của ABP Framework.
+Dự án **Kairos Garden** là một ứng dụng hỗ trợ tập trung, được xây dựng dựa trên kiến trúc Domain Driven Design (DDD) của ABP Framework.
 
 ### Bối cảnh & Mục tiêu
 Respository này được thiết kế để phục vụ các mục đích chính trong cùng một codebase (monorepo):
