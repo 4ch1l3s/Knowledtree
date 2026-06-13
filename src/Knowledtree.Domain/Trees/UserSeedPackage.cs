@@ -53,4 +53,14 @@ public class UserSeedPackage : AuditedAggregateRoot<Guid>
 
         Quantity -= quantity;
     }
+
+    public virtual void SetQuantity(int quantity)
+    {
+        if (quantity < 0)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidSeedPackageQuantity);
+        }
+
+        Quantity = quantity;
+    }
 }

@@ -65,6 +65,15 @@ public class UserWallet : Entity<Guid>, IHasCreationTime, IHasModificationTime
         Gem += amount;
     }
 
+    public virtual void SetBalance(long coin, long gem)
+    {
+        CheckAmount(coin);
+        CheckAmount(gem);
+
+        Coin = coin;
+        Gem = gem;
+    }
+
     private static void CheckAmount(long amount)
     {
         if (amount < 0)

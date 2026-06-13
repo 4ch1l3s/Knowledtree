@@ -17,6 +17,7 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import Svg, { Circle } from 'react-native-svg';
 import AppLayout from '../components/AppLayout';
@@ -27,6 +28,11 @@ import {
     getMyTags,
     TagDto,
 } from '../api/tags';
+import {
+    getMySeedPackages,
+    SeedPackageDto,
+} from '../api/store';
+import { resolveSeedPackageImage } from '../utils/seedPackageAssets';
 
 const dirtAsset = require('../assets/dirt-asset.png');
 
@@ -44,6 +50,9 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * KNOB_RADIUS;
 const PROGRESS_COLOR = '#3B653F';
 const TRACK_COLOR = '#DCE5DB';
 const SEAM_LOCK_DEGREES = 90;
+const PLOT_TOUCH_SIZE = RING_SIZE - scale.s(60);
+const PLOT_TOUCH_RADIUS = PLOT_TOUCH_SIZE / 2;
+const SEED_MODAL_TARGET_HEIGHT = scale.vs(646);
 const TAG_COLORS = [
     '#3B6B3B',
     '#E85D5D',
@@ -60,16 +69,36 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
 
 const formatFocusTime = (minutes: number) => `${minutes}:00`;
 
+const getErrorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.error?.message
+    || error?.response?.data?.message
+    || error?.message
+    || fallback;
+
 const GrowTreeScreen = () => {
+    const navigation = useNavigation<any>();
     const { theme } = useTheme();
-    const { height } = useWindowDimensions();
+    const { height, width } = useWindowDimensions();
     const isShortScreen = height < 760;
+    const seedGridGap = scale.s(14);
+    const seedGridHorizontalPadding = scale.s(29);
+    const seedCardWidth = Math.min(
+        scale.s(124),
+        Math.floor((width - seedGridHorizontalPadding * 2 - seedGridGap * 2) / 3),
+    );
+    const seedCardHeight = Math.round(seedCardWidth * 1.31);
+    const seedModalHeight = Math.min(SEED_MODAL_TARGET_HEIGHT, height - scale.vs(38));
     const [focusMinutes, setFocusMinutes] = useState(INITIAL_MINUTES);
     const progressControlRef = useRef<View>(null);
     const progressOriginRef = useRef({ x: 0, y: 0 });
     const [tags, setTags] = useState<TagDto[]>([]);
     const [tagsLoading, setTagsLoading] = useState(false);
     const [tagsLoaded, setTagsLoaded] = useState(false);
+    const [isSeedPickerVisible, setIsSeedPickerVisible] = useState(false);
+    const [seedPackages, setSeedPackages] = useState<SeedPackageDto[]>([]);
+    const [seedPackagesLoading, setSeedPackagesLoading] = useState(false);
+    const [seedPackagesError, setSeedPackagesError] = useState<string | null>(null);
+    const [selectedSeedPackage, setSelectedSeedPackage] = useState<SeedPackageDto | null>(null);
     const [isTagPickerVisible, setIsTagPickerVisible] = useState(false);
     const [tagSearchQuery, setTagSearchQuery] = useState('');
     const [selectedTag, setSelectedTag] = useState<TagDto | null>(null);
@@ -118,6 +147,48 @@ const GrowTreeScreen = () => {
             setTagsLoading(false);
         }
     }, []);
+
+    const loadSeedPackages = useCallback(async () => {
+        setSeedPackagesLoading(true);
+        setSeedPackagesError(null);
+
+        try {
+            const data = await getMySeedPackages();
+            const availablePackages = data
+                .filter(seedPackage => seedPackage.quantity > 0)
+                .sort((first, second) => (
+                    first.treePoolId - second.treePoolId
+                    || first.treePoolName.localeCompare(second.treePoolName)
+                ));
+
+            setSeedPackages(availablePackages);
+            setSelectedSeedPackage(currentPackage => {
+                if (!currentPackage) {
+                    return null;
+                }
+
+                return availablePackages.find(seedPackage => seedPackage.id === currentPackage.id) ?? null;
+            });
+        } catch (error: any) {
+            setSeedPackagesError(getErrorMessage(error, 'Cant load seeds'));
+        } finally {
+            setSeedPackagesLoading(false);
+        }
+    }, []);
+
+    const openSeedPicker = useCallback(() => {
+        setIsSeedPickerVisible(true);
+        loadSeedPackages();
+    }, [loadSeedPackages]);
+
+    const closeSeedPicker = useCallback(() => {
+        setIsSeedPickerVisible(false);
+    }, []);
+
+    const goToShop = useCallback(() => {
+        setIsSeedPickerVisible(false);
+        navigation.navigate('Shop');
+    }, [navigation]);
 
     const openTagPicker = useCallback(() => {
         setDraftSelectedTag(selectedTag);
@@ -191,6 +262,21 @@ const GrowTreeScreen = () => {
         });
     }, []);
 
+    const isTouchInsidePlot = useCallback((event: GestureResponderEvent) => {
+        const { pageX, pageY } = event.nativeEvent;
+        const { x, y } = progressOriginRef.current;
+        const centerX = x + RING_RADIUS;
+        const centerY = y + RING_RADIUS;
+        const dx = pageX - centerX;
+        const dy = pageY - centerY;
+
+        return Math.sqrt(dx * dx + dy * dy) <= PLOT_TOUCH_RADIUS;
+    }, []);
+
+    const shouldHandleProgressGesture = useCallback((event: GestureResponderEvent) => {
+        return !isTouchInsidePlot(event);
+    }, [isTouchInsidePlot]);
+
     const updateFocusMinutes = useCallback((event: GestureResponderEvent) => {
         const { pageX, pageY } = event.nativeEvent;
         const { x, y } = progressOriginRef.current;
@@ -229,11 +315,11 @@ const GrowTreeScreen = () => {
     }, []);
 
     const panResponder = useMemo(() => PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: shouldHandleProgressGesture,
+        onMoveShouldSetPanResponder: shouldHandleProgressGesture,
         onPanResponderGrant: updateFocusMinutes,
         onPanResponderMove: updateFocusMinutes,
-    }), [updateFocusMinutes]);
+    }), [shouldHandleProgressGesture, updateFocusMinutes]);
 
     return (
         <AppLayout title="Grow a tree" iconPosition="left">
@@ -272,6 +358,13 @@ const GrowTreeScreen = () => {
                         </Svg>
 
                         <Image source={dirtAsset} style={styles.dirtImage} resizeMode="contain" />
+
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Select a seed"
+                            style={styles.plotTouchTarget}
+                            onPress={openSeedPicker}
+                        />
 
                         <View style={[
                             styles.progressKnob,
@@ -481,6 +574,130 @@ const GrowTreeScreen = () => {
                     </Pressable>
                 </KeyboardAvoidingView>
             </Modal>
+
+            <Modal
+                visible={isSeedPickerVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={closeSeedPicker}
+            >
+                <Pressable style={styles.seedModalBackdrop} onPress={closeSeedPicker}>
+                    <Pressable
+                        style={[styles.seedModalSurface, { height: seedModalHeight }]}
+                        onPress={() => undefined}
+                    >
+                        <View style={styles.seedModalHandle} />
+
+                        <View style={styles.seedModalHeader}>
+                            <Text style={styles.seedModalTitle}>Select a Seed</Text>
+                        </View>
+
+                        <View style={styles.seedModalBody}>
+                            {seedPackagesLoading ? (
+                                <View style={styles.seedPickerState}>
+                                    <ActivityIndicator color={PROGRESS_COLOR} size="large" />
+                                    <Text style={styles.seedPickerStateText}>Loading seeds...</Text>
+                                </View>
+                            ) : seedPackagesError ? (
+                                <View style={styles.seedPickerState}>
+                                    <View style={styles.seedEmptyIconWrap}>
+                                        <Icon name="alert-circle" size={scale.ms(30)} color="#B42318" />
+                                    </View>
+                                    <Text style={styles.seedEmptyTitle}>Cannot load seeds</Text>
+                                    <Text style={styles.seedEmptyDescription}>{seedPackagesError}</Text>
+                                    <TouchableOpacity
+                                        style={styles.seedRetryButton}
+                                        activeOpacity={0.82}
+                                        onPress={loadSeedPackages}
+                                    >
+                                        <Text style={styles.seedRetryButtonText}>Retry</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : seedPackages.length > 0 ? (
+                                <ScrollView
+                                    style={styles.seedList}
+                                    contentContainerStyle={[
+                                        styles.seedListContent,
+                                        {
+                                            columnGap: seedGridGap,
+                                            rowGap: seedGridGap,
+                                        },
+                                    ]}
+                                    showsVerticalScrollIndicator={false}
+                                >
+                                    {seedPackages.map(seedPackage => {
+                                        const isActive = selectedSeedPackage?.id === seedPackage.id;
+
+                                        return (
+                                            <TouchableOpacity
+                                                key={seedPackage.id}
+                                                style={[
+                                                    styles.seedPackageCard,
+                                                    {
+                                                        width: seedCardWidth,
+                                                        height: seedCardHeight,
+                                                    },
+                                                    isActive && styles.seedPackageCardActive,
+                                                ]}
+                                                activeOpacity={0.78}
+                                                onPress={() => setSelectedSeedPackage(seedPackage)}
+                                            >
+                                                <Image
+                                                    source={resolveSeedPackageImage(
+                                                        seedPackage.packageImageKey,
+                                                        seedPackage.treePoolName,
+                                                    )}
+                                                    style={[
+                                                        styles.seedPackageImage,
+                                                        {
+                                                            width: seedCardWidth * 0.52,
+                                                            height: seedCardHeight * 0.58,
+                                                        },
+                                                    ]}
+                                                    resizeMode="contain"
+                                                />
+
+                                                <View style={[
+                                                    styles.seedQuantityPill,
+                                                    isActive && styles.seedQuantityPillActive,
+                                                ]}>
+                                                    <Text style={[
+                                                        styles.seedQuantityText,
+                                                        isActive && styles.seedQuantityTextActive,
+                                                    ]}>
+                                                        x{seedPackage.quantity}
+                                                    </Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </ScrollView>
+                            ) : (
+                                <View style={styles.seedPickerState}>
+                                    <View style={styles.seedEmptyIconWrap}>
+                                        <Icon name="package" size={scale.ms(30)} color="#3B653F" />
+                                    </View>
+                                    <Text style={styles.seedEmptyTitle}>No seed available</Text>
+                                    <Text style={styles.seedEmptyDescription}>
+                                        Visit the shop to get seeds before planting.
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+
+                        <View style={styles.seedModalFooter}>
+                            <TouchableOpacity
+                                style={styles.seedShopButton}
+                                activeOpacity={0.82}
+                                onPress={goToShop}
+                            >
+                                <Icon name="shopping-bag" size={scale.ms(18)} color="#FFFFFF" />
+                                <Text style={styles.seedShopButtonText}>SHOP</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </AppLayout>
     );
 };
@@ -550,6 +767,16 @@ const styles = StyleSheet.create({
         width: scale.s(240),
         height: scale.vs(280),
         marginTop: scale.vs(90),
+    },
+    plotTouchTarget: {
+        position: 'absolute',
+        top: (RING_SIZE - PLOT_TOUCH_SIZE) / 2,
+        left: (RING_SIZE - PLOT_TOUCH_SIZE) / 2,
+        width: PLOT_TOUCH_SIZE,
+        height: PLOT_TOUCH_SIZE,
+        borderRadius: PLOT_TOUCH_SIZE / 2,
+        backgroundColor: 'transparent',
+        zIndex: 3,
     },
     focusPill: {
         height: scale.vs(49),
@@ -836,6 +1063,188 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: scale.ms(16),
         fontWeight: '600',
+    },
+    seedModalBackdrop: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(17, 24, 20, 0.32)',
+    },
+    seedModalSurface: {
+        borderTopLeftRadius: scale.s(24),
+        borderTopRightRadius: scale.s(24),
+        borderTopWidth: 1,
+        borderColor: 'rgba(220, 229, 219, 0.7)',
+        overflow: 'hidden',
+        backgroundColor: '#F3FCF2',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.18,
+        shadowRadius: 18,
+        elevation: 16,
+    },
+    seedModalHandle: {
+        width: scale.s(48),
+        height: scale.vs(6),
+        borderRadius: scale.s(999),
+        alignSelf: 'center',
+        marginTop: scale.vs(12),
+        marginBottom: scale.vs(10),
+        backgroundColor: 'rgba(193, 201, 190, 0.5)',
+    },
+    seedModalHeader: {
+        minHeight: scale.vs(72),
+        borderBottomWidth: 1,
+        borderBottomColor: '#DCE5DB',
+        paddingHorizontal: scale.s(29),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+    },
+    seedModalTitle: {
+        color: '#161D18',
+        fontSize: scale.ms(20),
+        fontWeight: '800',
+        lineHeight: scale.ms(28),
+    },
+    seedModalBody: {
+        flex: 1,
+        paddingHorizontal: scale.s(29),
+        paddingTop: scale.vs(30),
+        paddingBottom: scale.vs(16),
+        backgroundColor: '#F3FCF2',
+    },
+    seedPickerState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    seedPickerStateText: {
+        marginTop: scale.vs(12),
+        color: '#424940',
+        fontSize: scale.ms(13),
+        fontWeight: '700',
+        lineHeight: scale.ms(18),
+    },
+    seedList: {
+        flex: 1,
+        width: '100%',
+    },
+    seedListContent: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
+        paddingBottom: scale.vs(18),
+    },
+    seedPackageCard: {
+        borderWidth: 1,
+        borderColor: '#DCE5DB',
+        borderRadius: scale.s(18),
+        paddingTop: scale.vs(15),
+        paddingBottom: scale.vs(14),
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#FFFFFF',
+    },
+    seedPackageCardActive: {
+        borderWidth: 2,
+        borderColor: '#3B653F',
+        backgroundColor: '#E2F1E4',
+    },
+    seedPackageImage: {
+        marginTop: scale.vs(2),
+    },
+    seedQuantityPill: {
+        minWidth: scale.s(42),
+        height: scale.vs(26),
+        borderRadius: scale.s(999),
+        paddingHorizontal: scale.s(10),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    seedQuantityPillActive: {
+        backgroundColor: '#F3FCF2',
+    },
+    seedQuantityText: {
+        color: '#424940',
+        fontSize: scale.ms(12),
+        fontWeight: '800',
+        lineHeight: scale.ms(16),
+    },
+    seedQuantityTextActive: {
+        color: '#3B653F',
+    },
+    seedEmptyIconWrap: {
+        width: scale.s(72),
+        height: scale.s(72),
+        borderRadius: scale.s(36),
+        borderWidth: 1,
+        borderColor: '#D4E2D2',
+        marginBottom: scale.vs(18),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#E8F6E8',
+    },
+    seedEmptyTitle: {
+        color: '#161D18',
+        fontSize: scale.ms(18),
+        fontWeight: '800',
+        lineHeight: scale.ms(26),
+        textAlign: 'center',
+    },
+    seedEmptyDescription: {
+        width: scale.s(248),
+        marginTop: scale.vs(8),
+        color: '#424940',
+        fontSize: scale.ms(13),
+        lineHeight: scale.ms(19),
+        textAlign: 'center',
+    },
+    seedRetryButton: {
+        minHeight: scale.vs(40),
+        borderRadius: scale.s(10),
+        marginTop: scale.vs(16),
+        paddingHorizontal: scale.s(18),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#B42318',
+    },
+    seedRetryButtonText: {
+        color: '#FFFFFF',
+        fontSize: scale.ms(13),
+        fontWeight: '800',
+        lineHeight: scale.ms(18),
+    },
+    seedModalFooter: {
+        height: scale.vs(127),
+        borderTopWidth: 1,
+        borderTopColor: '#DCE5DB',
+        paddingHorizontal: scale.s(29),
+        paddingTop: scale.vs(30),
+        paddingBottom: scale.vs(29),
+        backgroundColor: '#F3FCF2',
+    },
+    seedShopButton: {
+        height: scale.vs(67),
+        borderRadius: scale.s(12),
+        paddingHorizontal: scale.s(24),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: scale.s(8),
+        backgroundColor: PROGRESS_COLOR,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.18,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    seedShopButtonText: {
+        color: '#FFFFFF',
+        fontSize: scale.ms(16),
+        fontWeight: '800',
+        lineHeight: scale.ms(24),
+        textAlign: 'center',
     },
 });
 
