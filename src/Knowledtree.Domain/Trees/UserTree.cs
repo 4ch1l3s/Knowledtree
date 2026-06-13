@@ -36,4 +36,14 @@ public class UserTree : AuditedAggregateRoot<Guid>
         TotalObtainedCount = 1;
         IsPlanted = false;
     }
+
+    public virtual void IncrementObtainedCount()
+    {
+        TotalObtainedCount++;
+    }
+
+    public virtual void SetPlanted(bool isPlanted)
+    {
+        IsPlanted = isPlanted;
+    }
 }

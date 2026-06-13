@@ -209,8 +209,7 @@ namespace Knowledtree.Migrations
 
                     b.HasIndex("TreePoolId");
 
-                    b.HasIndex("UserId")
-                        .IsUnique();
+                    b.HasIndex("UserId");
 
                     b.ToTable("AppPlantingSessions", (string)null);
                 });
@@ -305,6 +304,10 @@ namespace Knowledtree.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("PackageImageKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<int>("PoolType")
                         .HasColumnType("integer");
 
@@ -344,6 +347,63 @@ namespace Knowledtree.Migrations
                         .IsUnique();
 
                     b.ToTable("AppTreePoolItems", (string)null);
+                });
+
+            modelBuilder.Entity("Knowledtree.Trees.UserSeedPackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("ConcurrencyStamp");
+
+                    b.Property<DateTime>("CreationTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("CreationTime");
+
+                    b.Property<Guid?>("CreatorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("CreatorId");
+
+                    b.Property<string>("ExtraProperties")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ExtraProperties");
+
+                    b.Property<DateTime?>("LastModificationTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("LastModificationTime");
+
+                    b.Property<Guid?>("LastModifierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("LastModifierId");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("TreePoolId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TreePoolId");
+
+                    b.HasIndex("UserId", "TreePoolId")
+                        .IsUnique();
+
+                    b.ToTable("AppUserSeedPackages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_UserSeedPackage_Quantity_NonNegative", "\"Quantity\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Knowledtree.Trees.UserTree", b =>
@@ -2251,8 +2311,8 @@ namespace Knowledtree.Migrations
                         .IsRequired();
 
                     b.HasOne("Volo.Abp.Identity.IdentityUser", null)
-                        .WithOne()
-                        .HasForeignKey("Knowledtree.Trees.PlantingSession", "UserId")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -2268,6 +2328,21 @@ namespace Knowledtree.Migrations
                     b.HasOne("Knowledtree.Trees.TreePool", null)
                         .WithMany()
                         .HasForeignKey("TreePoolId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Knowledtree.Trees.UserSeedPackage", b =>
+                {
+                    b.HasOne("Knowledtree.Trees.TreePool", null)
+                        .WithMany()
+                        .HasForeignKey("TreePoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Volo.Abp.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

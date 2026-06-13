@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useContext, useState } from 'react';
-import { View, Text, Image, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, TouchableWithoutFeedback, TextStyle } from 'react-native';
+import { View, Text, Image, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, TouchableWithoutFeedback } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
@@ -115,6 +115,14 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                             >
                                 <FontAwesome name="tree" size={scale.ms(16)} color={route.name === 'GrowTree' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
                                 <Text style={[styles.menuText, { color: route.name === 'GrowTree' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'GrowTree' ? 'bold' : '500' }]}>Grow a tree</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.menuItem, route.name === 'Shop' && { backgroundColor: '#DDFBEA' }]}
+                                onPress={() => { onClose(); navigation.navigate('Shop'); }}
+                            >
+                                <FontAwesome name="shopping-bag" size={scale.ms(16)} color={route.name === 'Shop' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
+                                <Text style={[styles.menuText, { color: route.name === 'Shop' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Shop' ? 'bold' : '500' }]}>Shop</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity

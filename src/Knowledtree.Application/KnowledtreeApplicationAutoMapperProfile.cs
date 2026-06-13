@@ -1,6 +1,8 @@
 using AutoMapper;
 using Knowledtree.Friendships;
 using Knowledtree.Tags;
+using Knowledtree.Trees;
+using Knowledtree.UserWallets;
 
 namespace Knowledtree;
 
@@ -17,5 +19,10 @@ public class KnowledtreeApplicationAutoMapperProfile : Profile
 
         // Friendship -> FriendshipDto
         CreateMap<Friendship, FriendshipDto>();
+
+        CreateMap<Tree, TreeDto>();
+        CreateMap<TreePool, TreePoolDto>();
+        CreateMap<UserWallet, WalletDto>();
+        CreateMap<PlantingSession, PlantingSessionDto>();
     }
 }

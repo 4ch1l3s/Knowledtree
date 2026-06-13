@@ -1,4 +1,5 @@
 using System;
+using Volo.Abp;
 using Volo.Abp.Domain.Entities.Auditing;
 
 namespace Knowledtree.Trees;
@@ -48,5 +49,33 @@ public class PlantingSession : AuditedAggregateRoot<Guid>
         ClientStartTime = clientStartTime;
         ServerStartTime = serverStartTime;
         Status = PlantingSessionStatus.Growing;
+    }
+
+    public virtual void Complete(
+        int resultTreeId,
+        DateTime? clientEndTime,
+        DateTime serverEndTime,
+        int duplicateGemReward)
+    {
+        if (Status != PlantingSessionStatus.Growing)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidPlantingSessionStatus);
+        }
+
+        ResultTreeId = resultTreeId;
+        ClientEndTime = clientEndTime;
+        ServerEndTime = serverEndTime;
+        DuplicateGemReward = duplicateGemReward;
+        Status = PlantingSessionStatus.Claimed;
+    }
+
+    public virtual void Cancel()
+    {
+        if (Status != PlantingSessionStatus.Growing)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidPlantingSessionStatus);
+        }
+
+        Status = PlantingSessionStatus.Cancelled;
     }
 }

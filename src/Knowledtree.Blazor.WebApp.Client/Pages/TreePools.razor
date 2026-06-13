@@ -1,0 +1,254 @@
+@page "/tree-pools"
+@inherits KnowledtreeComponentBase
+@attribute [Authorize(KnowledtreePermissions.TreeManagement.TreePools.Default)]
+@using Knowledtree.Permissions
+@using Knowledtree.Trees
+@inject IAdminTreePoolAppService TreePoolAppService
+
+<Card>
+    <CardHeader>
+        <Row Class="justify-content-between">
+            <Column ColumnSize="ColumnSize.IsAuto">
+                <h2>@L["Menu:TreePools"]</h2>
+            </Column>
+            <Column ColumnSize="ColumnSize.IsAuto">
+                @if (CanCreate)
+                {
+                    <Button Color="Color.Primary" Clicked="OpenCreateModal">
+                        @L["NewTreePool"]
+                    </Button>
+                }
+            </Column>
+        </Row>
+    </CardHeader>
+    <CardBody>
+        <DataGrid TItem="TreePoolDto"
+                  Data="TreePoolList"
+                  ReadData="OnDataGridReadAsync"
+                  TotalItems="TreePoolList.Count"
+                  Responsive>
+            <DataGridColumns>
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.Id)" Caption="ID" Width="60px" />
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.Name)" Caption="@L["Name"]" />
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.PoolType)" Caption="@L["PoolType"]" />
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.CurrencyType)" Caption="@L["CurrencyType"]" />
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.Cost)" Caption="@L["Cost"]" />
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.CommonRate)" Caption="@L["CommonRate"]">
+                    <DisplayTemplate>@($"{context.CommonRate:F2}%")</DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.RareRate)" Caption="@L["RareRate"]">
+                    <DisplayTemplate>@($"{context.RareRate:F2}%")</DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.GoldRate)" Caption="@L["GoldRate"]">
+                    <DisplayTemplate>@($"{context.GoldRate:F2}%")</DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.PackageImageKey)" Caption="@L["PackageImageKey"]" />
+                <DataGridColumn TItem="TreePoolDto" Field="@nameof(TreePoolDto.IsActive)" Caption="@L["IsActive"]">
+                    <DisplayTemplate>
+                        @if (context.IsActive)
+                        {
+                            <Badge Color="Color.Success">@L["Active"]</Badge>
+                        }
+                        else
+                        {
+                            <Badge Color="Color.Secondary">@L["Inactive"]</Badge>
+                        }
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn TItem="TreePoolDto" Caption="@L["Actions"]" Width="150px">
+                    <DisplayTemplate>
+                        <Dropdown>
+                            <DropdownToggle Color="Color.Primary" Size="Size.Small">
+                                @L["Actions"]
+                            </DropdownToggle>
+                            <DropdownMenu>
+                                @if (CanUpdate)
+                                {
+                                    <DropdownItem Clicked="() => OpenEditModal(context)">
+                                        @L["Edit"]
+                                    </DropdownItem>
+                                }
+                                @if (CanDelete)
+                                {
+                                    <DropdownItem Clicked="() => DeleteAsync(context)">
+                                        @L["Delete"]
+                                    </DropdownItem>
+                                }
+                            </DropdownMenu>
+                        </Dropdown>
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGridColumns>
+        </DataGrid>
+    </CardBody>
+</Card>
+
+@* Modal tao moi *@
+<Modal @ref="CreateModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["NewTreePool"]</ModalTitle>
+                <CloseButton Clicked="CloseCreateModal" />
+            </ModalHeader>
+            <ModalBody>
+                <Validations @ref="CreateValidationsRef" Model="NewTreePool" ValidateOnLoad="false">
+                    <Validation>
+                        <Field>
+                            <FieldLabel>@L["Name"]</FieldLabel>
+                            <TextEdit @bind-Text="NewTreePool.Name" MaxLength="TreePoolConsts.MaxNameLength">
+                                <Feedback><ValidationError /></Feedback>
+                            </TextEdit>
+                        </Field>
+                    </Validation>
+                    <Field>
+                        <FieldLabel>@L["PoolType"]</FieldLabel>
+                        <Select TValue="TreePoolType" @bind-SelectedValue="NewTreePool.PoolType">
+                            @foreach (var val in Enum.GetValues<TreePoolType>())
+                            {
+                                <SelectItem Value="val">@val</SelectItem>
+                            }
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>@L["CurrencyType"]</FieldLabel>
+                        <Select TValue="CurrencyType" @bind-SelectedValue="NewTreePool.CurrencyType">
+                            @foreach (var val in Enum.GetValues<CurrencyType>())
+                            {
+                                <SelectItem Value="val">@val</SelectItem>
+                            }
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>@L["Cost"]</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="NewTreePool.Cost" Min="0" />
+                    </Field>
+                    <Fields>
+                        <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                            <FieldLabel>@L["CommonRate"]</FieldLabel>
+                            <NumericEdit TValue="decimal" @bind-Value="NewTreePool.CommonRate" Min="0" Max="100" Step="0.01m" />
+                        </Field>
+                        <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                            <FieldLabel>@L["RareRate"]</FieldLabel>
+                            <NumericEdit TValue="decimal" @bind-Value="NewTreePool.RareRate" Min="0" Max="100" Step="0.01m" />
+                        </Field>
+                        <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                            <FieldLabel>@L["GoldRate"]</FieldLabel>
+                            <NumericEdit TValue="decimal" @bind-Value="NewTreePool.GoldRate" Min="0" Max="100" Step="0.01m" />
+                        </Field>
+                    </Fields>
+                    <Fields>
+                        <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                            <FieldLabel>@L["StartTime"]</FieldLabel>
+                            <DateEdit TValue="DateTime?" @bind-Date="NewTreePool.StartTime" InputMode="DateInputMode.DateTime" />
+                        </Field>
+                        <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                            <FieldLabel>@L["EndTime"]</FieldLabel>
+                            <DateEdit TValue="DateTime?" @bind-Date="NewTreePool.EndTime" InputMode="DateInputMode.DateTime" />
+                        </Field>
+                    </Fields>
+                    <Validation>
+                        <Field>
+                            <FieldLabel>@L["PackageImageKey"]</FieldLabel>
+                            <TextEdit @bind-Text="NewTreePool.PackageImageKey" MaxLength="TreePoolConsts.MaxPackageImageKeyLength">
+                                <Feedback><ValidationError /></Feedback>
+                            </TextEdit>
+                        </Field>
+                    </Validation>
+                    <Field>
+                        <Check TValue="bool" @bind-Checked="NewTreePool.IsActive">@L["IsActive"]</Check>
+                    </Field>
+                </Validations>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseCreateModal">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="CreateAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>
+
+@* Modal chinh sua *@
+<Modal @ref="EditModal">
+    <ModalContent Centered Size="ModalSize.Large">
+        <Form>
+            <ModalHeader>
+                <ModalTitle>@L["EditTreePool"]</ModalTitle>
+                <CloseButton Clicked="CloseEditModal" />
+            </ModalHeader>
+            <ModalBody>
+                <Validations @ref="EditValidationsRef" Model="EditingTreePool" ValidateOnLoad="false">
+                    <Validation>
+                        <Field>
+                            <FieldLabel>@L["Name"]</FieldLabel>
+                            <TextEdit @bind-Text="EditingTreePool.Name" MaxLength="TreePoolConsts.MaxNameLength">
+                                <Feedback><ValidationError /></Feedback>
+                            </TextEdit>
+                        </Field>
+                    </Validation>
+                    <Field>
+                        <FieldLabel>@L["PoolType"]</FieldLabel>
+                        <Select TValue="TreePoolType" @bind-SelectedValue="EditingTreePool.PoolType">
+                            @foreach (var val in Enum.GetValues<TreePoolType>())
+                            {
+                                <SelectItem Value="val">@val</SelectItem>
+                            }
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>@L["CurrencyType"]</FieldLabel>
+                        <Select TValue="CurrencyType" @bind-SelectedValue="EditingTreePool.CurrencyType">
+                            @foreach (var val in Enum.GetValues<CurrencyType>())
+                            {
+                                <SelectItem Value="val">@val</SelectItem>
+                            }
+                        </Select>
+                    </Field>
+                    <Field>
+                        <FieldLabel>@L["Cost"]</FieldLabel>
+                        <NumericEdit TValue="int" @bind-Value="EditingTreePool.Cost" Min="0" />
+                    </Field>
+                    <Fields>
+                        <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                            <FieldLabel>@L["CommonRate"]</FieldLabel>
+                            <NumericEdit TValue="decimal" @bind-Value="EditingTreePool.CommonRate" Min="0" Max="100" Step="0.01m" />
+                        </Field>
+                        <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                            <FieldLabel>@L["RareRate"]</FieldLabel>
+                            <NumericEdit TValue="decimal" @bind-Value="EditingTreePool.RareRate" Min="0" Max="100" Step="0.01m" />
+                        </Field>
+                        <Field ColumnSize="ColumnSize.Is4.OnDesktop">
+                            <FieldLabel>@L["GoldRate"]</FieldLabel>
+                            <NumericEdit TValue="decimal" @bind-Value="EditingTreePool.GoldRate" Min="0" Max="100" Step="0.01m" />
+                        </Field>
+                    </Fields>
+                    <Fields>
+                        <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                            <FieldLabel>@L["StartTime"]</FieldLabel>
+                            <DateEdit TValue="DateTime?" @bind-Date="EditingTreePool.StartTime" InputMode="DateInputMode.DateTime" />
+                        </Field>
+                        <Field ColumnSize="ColumnSize.Is6.OnDesktop">
+                            <FieldLabel>@L["EndTime"]</FieldLabel>
+                            <DateEdit TValue="DateTime?" @bind-Date="EditingTreePool.EndTime" InputMode="DateInputMode.DateTime" />
+                        </Field>
+                    </Fields>
+                    <Validation>
+                        <Field>
+                            <FieldLabel>@L["PackageImageKey"]</FieldLabel>
+                            <TextEdit @bind-Text="EditingTreePool.PackageImageKey" MaxLength="TreePoolConsts.MaxPackageImageKeyLength">
+                                <Feedback><ValidationError /></Feedback>
+                            </TextEdit>
+                        </Field>
+                    </Validation>
+                    <Field>
+                        <Check TValue="bool" @bind-Checked="EditingTreePool.IsActive">@L["IsActive"]</Check>
+                    </Field>
+                </Validations>
+            </ModalBody>
+            <ModalFooter>
+                <Button Color="Color.Secondary" Clicked="CloseEditModal">@L["Cancel"]</Button>
+                <Button Color="Color.Primary" Clicked="UpdateAsync">@L["Save"]</Button>
+            </ModalFooter>
+        </Form>
+    </ModalContent>
+</Modal>

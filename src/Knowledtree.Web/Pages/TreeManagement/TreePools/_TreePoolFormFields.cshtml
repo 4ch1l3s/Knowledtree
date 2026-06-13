@@ -1,0 +1,119 @@
+@using System.Globalization
+@using Knowledtree.Trees
+@model Knowledtree.Web.Pages.TreeManagement.TreePools.TreePoolFormViewModel
+
+@{
+    var commonRate = Model.CommonRate.ToString("0.##", CultureInfo.InvariantCulture);
+    var rareRate = Model.RareRate.ToString("0.##", CultureInfo.InvariantCulture);
+    var goldRate = Model.GoldRate.ToString("0.##", CultureInfo.InvariantCulture);
+}
+
+<div class="treepool-client-validation alert alert-danger d-none" role="alert"></div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label class="form-label" for="@Model.Prefix-Name">Name</label>
+        <input id="@Model.Prefix-Name" name="@(Model.Prefix + ".Name")" value="@Model.Name" class="form-control" maxlength="64" required />
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-PoolType">Pool Type</label>
+        <select id="@Model.Prefix-PoolType" name="@(Model.Prefix + ".PoolType")" class="form-select">
+            @foreach (var poolType in Model.PoolTypes)
+            {
+                <option value="@((int)poolType)" selected="@(Model.PoolType == poolType)">@poolType</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-CurrencyType">Currency</label>
+        <select id="@Model.Prefix-CurrencyType" name="@(Model.Prefix + ".CurrencyType")" class="form-select">
+            @foreach (var currencyType in Model.CurrencyTypes)
+            {
+                <option value="@((int)currencyType)" selected="@(Model.CurrencyType == currencyType)">@currencyType</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-Cost">Cost</label>
+        <input id="@Model.Prefix-Cost" name="@(Model.Prefix + ".Cost")" value="@Model.Cost" type="number" min="0" class="form-control" />
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-CommonRate">Common Rate</label>
+        <div class="input-group">
+            <input id="@Model.Prefix-CommonRate" name="@(Model.Prefix + ".CommonRate")" value="@commonRate" type="number" min="0" max="100" step="0.01" class="form-control" data-rate-input="Common" />
+            <span class="input-group-text">%</span>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-RareRate">Rare Rate</label>
+        <div class="input-group">
+            <input id="@Model.Prefix-RareRate" name="@(Model.Prefix + ".RareRate")" value="@rareRate" type="number" min="0" max="100" step="0.01" class="form-control" data-rate-input="Rare" />
+            <span class="input-group-text">%</span>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-GoldRate">Gold Rate</label>
+        <div class="input-group">
+            <input id="@Model.Prefix-GoldRate" name="@(Model.Prefix + ".GoldRate")" value="@goldRate" type="number" min="0" max="100" step="0.01" class="form-control" data-rate-input="Gold" />
+            <span class="input-group-text">%</span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <label class="form-label" for="@Model.Prefix-StartTime">Start Time</label>
+        <input id="@Model.Prefix-StartTime" name="@(Model.Prefix + ".StartTime")" value="@Model.StartTime?.ToString("yyyy-MM-ddTHH:mm")" type="datetime-local" class="form-control" />
+    </div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label" for="@Model.Prefix-EndTime">End Time</label>
+        <input id="@Model.Prefix-EndTime" name="@(Model.Prefix + ".EndTime")" value="@Model.EndTime?.ToString("yyyy-MM-ddTHH:mm")" type="datetime-local" class="form-control" />
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-PackageImageKey">Package Image Key</label>
+        <input id="@Model.Prefix-PackageImageKey" name="@(Model.Prefix + ".PackageImageKey")" value="@Model.PackageImageKey" class="form-control" maxlength="128" placeholder="Image key..." />
+    </div>
+    <div class="col-md-1 mb-3 d-flex align-items-end">
+        <div class="form-check form-switch">
+            <input id="@Model.Prefix-IsActive" name="@(Model.Prefix + ".IsActive")" value="true" type="checkbox" class="form-check-input" checked="@Model.IsActive" data-active-input="true" />
+            <input name="@(Model.Prefix + ".IsActive")" value="false" type="hidden" />
+            <label class="form-check-label" for="@Model.Prefix-IsActive">Active</label>
+        </div>
+    </div>
+</div>
+
+<div class="border rounded p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <div class="fw-semibold">Trees in this pool</div>
+            <div class="text-muted small">Select all trees that can be rolled from this treepool.</div>
+        </div>
+        <a href="/TreeManagement/Trees" class="btn btn-sm btn-outline-secondary">
+            <i class="fa fa-tree me-1"></i> Manage Trees
+        </a>
+    </div>
+
+    @if (Model.Trees.Count == 0)
+    {
+        <div class="text-muted py-3">No trees are available.</div>
+    }
+    else
+    {
+        <div class="row">
+            @foreach (var tree in Model.Trees)
+            {
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="@Model.TreeIdsName" value="@tree.Id" id="@Model.TreeIdsName-@tree.Id-@Model.Prefix" checked="@Model.ContainsTree(tree.Id)" data-tree-rarity="@tree.Rarity" />
+                        <label class="form-check-label" for="@Model.TreeIdsName-@tree.Id-@Model.Prefix">
+                            @tree.Name <span class="text-muted">(@tree.Rarity)</span>
+                        </label>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

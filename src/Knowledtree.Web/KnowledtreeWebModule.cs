@@ -158,6 +158,7 @@ public class KnowledtreeWebModule : AbpModule
                 bundle =>
                 {
                     bundle.AddFiles("/js/avatar-upload.js");
+                    bundle.AddFiles("/Pages/Identity/Users/user-balance-extension.js");
                 }
             );
             options.ScriptBundles.Configure(

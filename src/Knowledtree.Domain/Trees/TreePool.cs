@@ -25,6 +25,8 @@ public class TreePool : AggregateRoot<int>
 
     public virtual bool IsActive { get; protected set; }
 
+    public virtual string? PackageImageKey { get; protected set; }
+
     protected TreePool()
     {
     }
@@ -39,7 +41,8 @@ public class TreePool : AggregateRoot<int>
         decimal goldRate,
         DateTime? startTime,
         DateTime? endTime,
-        bool isActive)
+        bool isActive,
+        string? packageImageKey = null)
     {
         Name = name;
         PoolType = poolType;
@@ -51,5 +54,39 @@ public class TreePool : AggregateRoot<int>
         StartTime = startTime;
         EndTime = endTime;
         IsActive = isActive;
+        PackageImageKey = packageImageKey;
+    }
+
+    public virtual void Update(
+        string name,
+        TreePoolType poolType,
+        CurrencyType currencyType,
+        int cost,
+        decimal commonRate,
+        decimal rareRate,
+        decimal goldRate,
+        DateTime? startTime,
+        DateTime? endTime,
+        bool isActive,
+        string? packageImageKey = null)
+    {
+        Name = name;
+        PoolType = poolType;
+        CurrencyType = currencyType;
+        Cost = cost;
+        CommonRate = commonRate;
+        RareRate = rareRate;
+        GoldRate = goldRate;
+        StartTime = startTime;
+        EndTime = endTime;
+        IsActive = isActive;
+        PackageImageKey = packageImageKey;
+    }
+
+    public virtual bool IsAvailableAt(DateTime now)
+    {
+        return IsActive
+            && (!StartTime.HasValue || StartTime.Value <= now)
+            && (!EndTime.HasValue || EndTime.Value >= now);
     }
 }

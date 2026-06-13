@@ -1,0 +1,386 @@
+@page "/TreeManagement/TreePools"
+@using Knowledtree.Trees
+@using Knowledtree.Web.Pages.TreeManagement
+@using Knowledtree.Web.Pages.TreeManagement.TreePools
+@model Knowledtree.Web.Pages.TreeManagement.TreePools.IndexModel
+
+<style>
+    .kt-admin-table {
+        table-layout: fixed;
+    }
+
+    .kt-admin-table th {
+        color: #6b7280;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .kt-admin-table td {
+        vertical-align: middle;
+    }
+
+    .kt-tree-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        max-width: 100%;
+    }
+
+    .kt-rarity-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.28rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        border: 1px solid transparent;
+    }
+
+    .kt-tree-chip {
+        max-width: 180px;
+        min-height: 24px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .kt-rarity-common {
+        color: #4b5563;
+        background: #f3f4f6;
+        border-color: #d1d5db;
+    }
+
+    .kt-rarity-rare {
+        color: #075985;
+        background: #e0f2fe;
+        border-color: #7dd3fc;
+    }
+
+    .kt-rarity-gold {
+        color: #854d0e;
+        background: #fef3c7;
+        border-color: #facc15;
+    }
+
+    .kt-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 72px;
+        border-radius: 999px;
+        padding: 0.28rem 0.6rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .kt-status-active {
+        color: #166534;
+        background: #dcfce7;
+        border: 1px solid #86efac;
+    }
+
+    .kt-status-inactive {
+        color: #4b5563;
+        background: #f3f4f6;
+        border: 1px solid #d1d5db;
+    }
+
+    .kt-actions {
+        display: grid;
+        grid-template-columns: 92px 92px;
+        justify-content: end;
+        gap: 0.5rem;
+        min-width: 196px;
+    }
+
+    .kt-actions form {
+        margin: 0;
+    }
+
+    .kt-actions .btn {
+        width: 92px;
+        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<abp-card>
+    <abp-card-header>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h2 class="mb-1">Treepools</h2>
+                <p class="text-muted mb-0">Configure seed packages, rarity rates, availability windows, and pool contents.</p>
+            </div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTreePoolModal">
+                <i class="fa fa-plus me-1"></i> New Treepool
+            </button>
+        </div>
+    </abp-card-header>
+    <abp-card-body>
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        @if (Model.Trees.Count == 0)
+        {
+            <div class="alert alert-warning">
+                Create at least one tree before activating a treepool.
+                <a href="/TreeManagement/Trees" class="alert-link">Go to Trees</a>
+            </div>
+        }
+
+        @if (Model.TreePools.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="fa fa-seedling fa-3x mb-3"></i>
+                <div>No treepools have been created yet.</div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle kt-admin-table">
+                    <colgroup>
+                        <col style="width: 16%;" />
+                        <col style="width: 8%;" />
+                        <col style="width: 9%;" />
+                        <col style="width: 12%;" />
+                        <col style="width: auto;" />
+                        <col style="width: 90px;" />
+                        <col style="width: 214px;" />
+                    </colgroup>
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Cost</th>
+                        <th>Rates</th>
+                        <th>Window</th>
+                        <th>Trees</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var pool in Model.TreePools)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@pool.Name</div>
+                                <div class="text-muted small">@pool.PoolType @(string.IsNullOrEmpty(pool.PackageImageKey) ? "" : $" | Image: {pool.PackageImageKey}")</div>
+                            </td>
+                            <td>
+                                <span class="fw-semibold">@pool.Cost</span>
+                                <span class="text-muted">@pool.CurrencyType</span>
+                            </td>
+                            <td>
+                                <div class="small">Common: @pool.CommonRate%</div>
+                                <div class="small">Rare: @pool.RareRate%</div>
+                                <div class="small">Gold: @pool.GoldRate%</div>
+                            </td>
+                            <td>
+                                <div class="small">Start: @(pool.StartTime?.ToString("g") ?? "Always")</div>
+                                <div class="small">End: @(pool.EndTime?.ToString("g") ?? "Never")</div>
+                            </td>
+                            <td>
+                                @if (pool.Trees.Count == 0)
+                                {
+                                    <span class="text-muted small">No trees</span>
+                                }
+                                else
+                                {
+                                    <div class="kt-tree-chip-list">
+                                    @foreach (var tree in pool.Trees)
+                                    {
+                                        <span class="kt-rarity-badge kt-tree-chip @TreeRarityDisplay.GetCssClass(tree.Rarity)" title="@tree.Name (@TreeRarityDisplay.GetLabel(tree.Rarity))">@tree.Name (@TreeRarityDisplay.GetLabel(tree.Rarity))</span>
+                                    }
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                @if (pool.IsActive)
+                                {
+                                    <span class="kt-status-badge kt-status-active">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="kt-status-badge kt-status-inactive">Inactive</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="kt-actions">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editTreePoolModal-@pool.Id">
+                                    <i class="fa fa-edit me-1"></i> Edit
+                                </button>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@pool.Id">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this treepool?');">
+                                        <i class="fa fa-trash me-1"></i> Delete
+                                    </button>
+                                </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </abp-card-body>
+</abp-card>
+
+<div class="modal fade" id="createTreePoolModal" tabindex="-1" aria-labelledby="createTreePoolModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Create" data-treepool-form="true">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createTreePoolModalLabel">New Treepool</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (Model.OpenModalId == "createTreePoolModal")
+                    {
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+                    }
+                    <partial name="_TreePoolFormFields" model="@(new TreePoolFormViewModel
+                    {
+                        Prefix = "CreateInput",
+                        TreeIdsName = "CreateTreeIds",
+                        Pool = null,
+                        Input = Model.OpenModalId == "createTreePoolModal" ? Model.CreateInput : null,
+                        SelectedTreeIds = Model.OpenModalId == "createTreePoolModal" ? Model.CreateTreeIds : null,
+                        Trees = Model.Trees,
+                        PoolTypes = Model.PoolTypes,
+                        CurrencyTypes = Model.CurrencyTypes
+                    })" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@foreach (var pool in Model.TreePools)
+{
+    <div class="modal fade" id="editTreePoolModal-@pool.Id" tabindex="-1" aria-labelledby="editTreePoolModalLabel-@pool.Id" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="Update" asp-route-id="@pool.Id" data-treepool-form="true">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editTreePoolModalLabel-@pool.Id">Edit Treepool</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (Model.OpenModalId == $"editTreePoolModal-{pool.Id}")
+                        {
+                            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+                        }
+                        <partial name="_TreePoolFormFields" model="@(new TreePoolFormViewModel
+                        {
+                            Prefix = "UpdateInput",
+                            TreeIdsName = "UpdateTreeIds",
+                            Pool = pool,
+                            Input = Model.OpenModalId == $"editTreePoolModal-{pool.Id}" ? Model.UpdateInput : null,
+                            SelectedTreeIds = Model.OpenModalId == $"editTreePoolModal-{pool.Id}" ? Model.UpdateTreeIds : null,
+                            Trees = Model.Trees,
+                            PoolTypes = Model.PoolTypes,
+                            CurrencyTypes = Model.CurrencyTypes
+                        })" />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const openModalId = '@Model.OpenModalId';
+        if (openModalId) {
+            const modalElement = document.getElementById(openModalId);
+            if (modalElement && window.bootstrap) {
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            }
+        }
+
+        document.querySelectorAll('form[data-treepool-form="true"]').forEach(function (form) {
+            const submitButton = form.querySelector('button[type="submit"]');
+            const validationBox = form.querySelector('.treepool-client-validation');
+
+            const parseRate = function (rarity) {
+                const input = form.querySelector('[data-rate-input="' + rarity + '"]');
+                const value = Number.parseFloat(input?.value || '0');
+                return Number.isFinite(value) ? value : 0;
+            };
+
+            const setValidationMessage = function (message) {
+                if (!validationBox) {
+                    return;
+                }
+
+                validationBox.textContent = message || '';
+                validationBox.classList.toggle('d-none', !message);
+            };
+
+            const getSelectedRarities = function () {
+                return Array.from(form.querySelectorAll('[data-tree-rarity]:checked'))
+                    .map(function (input) { return input.getAttribute('data-tree-rarity'); });
+            };
+
+            const validate = function () {
+                const commonRate = parseRate('Common');
+                const rareRate = parseRate('Rare');
+                const goldRate = parseRate('Gold');
+                const totalRate = commonRate + rareRate + goldRate;
+                let message = '';
+
+                if (Math.abs(totalRate - 100) > 0.001) {
+                    message = 'Common, Rare, and Gold rates must total exactly 100%.';
+                } else {
+                    const activeInput = form.querySelector('[data-active-input="true"]');
+                    const isActive = !!activeInput?.checked;
+                    if (isActive) {
+                        const selectedRarities = getSelectedRarities();
+                        if (commonRate > 0 && !selectedRarities.includes('Common')) {
+                            message = 'Active treepools require at least one Common tree.';
+                        } else if (rareRate > 0 && !selectedRarities.includes('Rare')) {
+                            message = 'Active treepools require at least one Rare tree.';
+                        } else if (goldRate > 0 && !selectedRarities.includes('Gold')) {
+                            message = 'Active treepools require at least one Gold tree.';
+                        }
+                    }
+                }
+
+                if (submitButton) {
+                    submitButton.disabled = !!message;
+                }
+                setValidationMessage(message);
+                return !message;
+            };
+
+            form.addEventListener('input', validate);
+            form.addEventListener('change', validate);
+            form.addEventListener('submit', function (event) {
+                if (!validate()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            });
+            validate();
+        });
+    });
+</script>
