@@ -41,4 +41,10 @@ public class StoreController : AbpControllerBase
     {
         return Ok(await _storeAppService.BuySeedPackageAsync(treePoolId));
     }
+
+    [HttpPost("seed-package-purchases/batch")]
+    public virtual async Task<IActionResult> BuySeedPackages([FromBody] BuySeedPackagesDto input)
+    {
+        return Ok(await _storeAppService.BuySeedPackagesAsync(input));
+    }
 }

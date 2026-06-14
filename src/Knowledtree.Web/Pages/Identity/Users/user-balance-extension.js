@@ -45,15 +45,29 @@
             }
         }
 
+        if (!userId && modal.dataset) {
+            userId = modal.dataset.userId || modal.dataset.id || null;
+        }
+
         if (!userId) {
             var idInput = modal.querySelector('input[name="User.Id"]')
+                || modal.querySelector('input[name="UserInfo.Id"]')
                 || modal.querySelector('input[name="UserId"]')
+                || modal.querySelector('input[name="UserInfo.UserId"]')
                 || modal.querySelector('input[name="Id"]')
                 || modal.querySelector('input[name="id"]');
 
             if (idInput && /^[0-9a-f-]+$/i.test(idInput.value)) {
                 userId = idInput.value;
             }
+        }
+
+        if (!userId) {
+            modal.querySelectorAll('input[type="hidden"], input[name*="Id"], input[name*="id"]').forEach(function (input) {
+                if (!userId && input.value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.value)) {
+                    userId = input.value;
+                }
+            });
         }
 
         if (!userId && modal.dataset && modal.dataset.url) {
@@ -122,7 +136,7 @@
         if (!modalBody) {
             if (attempt < 6) {
                 setTimeout(function () {
-                    injectBalanceTab(modal, attempt + 1);
+                    injectBalanceTab(container, attempt + 1);
                 }, 300);
             }
 
@@ -151,7 +165,7 @@
         var item = document.createElement('li');
         item.className = 'nav-item';
         item.setAttribute('role', 'presentation');
-        item.innerHTML = '<button class="nav-link" id="' + tabId + '" data-bs-toggle="tab" data-bs-target="#' + paneId + '" type="button" role="tab" aria-controls="' + paneId + '" aria-selected="false">Balance</button>';
+        item.innerHTML = '<a class="nav-link" id="' + tabId + '" data-bs-toggle="tab" href="#' + paneId + '" role="tab" aria-controls="' + paneId + '" aria-selected="false">Balance</a>';
         tabList.appendChild(item);
 
         var pane = document.createElement('div');
@@ -165,7 +179,7 @@
 
         attachPaneHandlers(pane);
 
-        var tabButton = item.querySelector('button');
+        var tabButton = item.querySelector('a');
         tabButton.addEventListener('shown.bs.tab', function () {
             if (pane.dataset.loaded !== 'true') {
                 loadBalance(pane);
@@ -384,7 +398,7 @@
     }
 
     function findBalanceContainers(root) {
-        if (!root || root.nodeType !== 1) {
+        if (!root || (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11)) {
             return [];
         }
 
@@ -416,14 +430,98 @@
         });
     }
 
+    function getModalElement(publicApi) {
+        if (!publicApi || typeof publicApi.getModal !== 'function') {
+            return null;
+        }
+
+        var modal = publicApi.getModal();
+        if (!modal) {
+            return null;
+        }
+
+        if (modal.jquery) {
+            return modal[0];
+        }
+
+        return modal.nodeType === 1 ? modal : null;
+    }
+
+    function scanEditUserModal(publicApi, args) {
+        var modal = getModalElement(publicApi) || document.querySelector('.modal.show') || document.body;
+        if (modal && args && args.id && modal.dataset) {
+            modal.dataset.userId = args.id;
+        }
+
+        scanBalanceContainers(modal);
+    }
+
+    function hookEditUserModal() {
+        if (!window.abp || !abp.modals || typeof abp.modals.editUser !== 'function' || abp.modals.editUser.__ktBalanceWrapped) {
+            return false;
+        }
+
+        var originalEditUser = abp.modals.editUser;
+        var wrappedEditUser = function () {
+            var modalObject = originalEditUser.apply(this, arguments) || {};
+            var originalInitModal = modalObject.initModal;
+
+            modalObject.initModal = function (publicApi, args) {
+                if (typeof originalInitModal === 'function') {
+                    originalInitModal.apply(this, arguments);
+                }
+
+                scanEditUserModal(publicApi, args);
+                setTimeout(function () {
+                    scanEditUserModal(publicApi, args);
+                }, 250);
+
+                if (publicApi && typeof publicApi.onOpen === 'function') {
+                    publicApi.onOpen(function () {
+                        scanEditUserModal(publicApi, args);
+                    });
+                }
+            };
+
+            return modalObject;
+        };
+
+        wrappedEditUser.__ktBalanceWrapped = true;
+        abp.modals.editUser = wrappedEditUser;
+        return true;
+    }
+
+    function startEditUserModalHook() {
+        var attempts = 0;
+        var timer = setInterval(function () {
+            attempts += 1;
+            if (hookEditUserModal() || attempts >= 50) {
+                clearInterval(timer);
+            }
+        }, 100);
+    }
+
     function observeModals() {
         if (!isUsersPage()) {
             return;
         }
 
+        startEditUserModalHook();
         scanBalanceContainers(document.body);
         setTimeout(function () { scanBalanceContainers(document.body); }, 500);
         setTimeout(function () { scanBalanceContainers(document.body); }, 1500);
+
+        document.addEventListener('shown.bs.modal', function (event) {
+            setTimeout(function () {
+                injectBalanceTab(event.target);
+            }, 100);
+        }, true);
+
+        document.addEventListener('shown.bs.offcanvas', function (event) {
+            setTimeout(function () {
+                injectBalanceTab(event.target);
+            }, 100);
+        }, true);
 
         if (typeof $ !== 'undefined' && $.fn) {
             $(document).on('shown.bs.modal', '.modal', function () {
@@ -444,7 +542,7 @@
         var observer = new MutationObserver(function (mutations) {
             mutations.forEach(function (mutation) {
                 mutation.addedNodes.forEach(function (node) {
-                    if (node.nodeType !== 1) {
+                    if (node.nodeType !== 1 && node.nodeType !== 11) {
                         return;
                     }
 
@@ -458,5 +556,9 @@
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    document.addEventListener('DOMContentLoaded', observeModals);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', observeModals);
+    } else {
+        observeModals();
+    }
 })();

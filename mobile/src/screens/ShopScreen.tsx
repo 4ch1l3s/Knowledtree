@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -15,7 +15,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import AppLayout from '../components/AppLayout';
 import { scale } from '../utils/scale';
 import {
-    buySeedPackage,
+    buySeedPackages,
     CurrencyType,
     getAvailableTreePools,
     getMyWallet,
@@ -32,9 +32,12 @@ const MINT = '#96E6B3';
 const BORDER = '#DCE5DB';
 const TEXT = '#161D18';
 const MUTED = '#424940';
+const BUY_DEBOUNCE_MS = 1000;
 
 const assetCoin = require('../assets/asset_coin.png');
 const assetGem = require('../assets/asset_gem.png');
+
+type PurchaseMap = Record<number, number>;
 
 const CURRENCY_ASSETS: Partial<Record<CurrencyType, ImageSourcePropType>> = {
     0: assetCoin,
@@ -71,6 +74,73 @@ const canBuyPool = (pool: TreePoolDto, wallet: WalletDto | null) => {
     }
 
     return getWalletBalance(wallet, pool.currencyType) >= pool.cost;
+};
+
+const getPurchaseQuantity = (purchases: PurchaseMap, treePoolId: number) => purchases[treePoolId] ?? 0;
+
+const addPurchaseQuantity = (purchases: PurchaseMap, treePoolId: number, quantity: number): PurchaseMap => ({
+    ...purchases,
+    [treePoolId]: getPurchaseQuantity(purchases, treePoolId) + quantity,
+});
+
+const subtractPurchaseQuantities = (purchases: PurchaseMap, batch: PurchaseMap): PurchaseMap => {
+    const nextPurchases = { ...purchases };
+
+    Object.entries(batch).forEach(([treePoolIdKey, quantity]) => {
+        const treePoolId = Number(treePoolIdKey);
+        const nextQuantity = getPurchaseQuantity(nextPurchases, treePoolId) - quantity;
+
+        if (nextQuantity > 0) {
+            nextPurchases[treePoolId] = nextQuantity;
+        } else {
+            delete nextPurchases[treePoolId];
+        }
+    });
+
+    return nextPurchases;
+};
+
+const getReservedCost = (
+    purchases: PurchaseMap,
+    poolsById: ReadonlyMap<number, TreePoolDto>,
+): WalletDto => {
+    let coin = 0;
+    let gem = 0;
+
+    Object.entries(purchases).forEach(([treePoolIdKey, quantity]) => {
+        const pool = poolsById.get(Number(treePoolIdKey));
+        if (!pool || pool.cost <= 0) {
+            return;
+        }
+
+        const cost = pool.cost * quantity;
+        if (pool.currencyType === 0) {
+            coin += cost;
+        } else if (pool.currencyType === 1) {
+            gem += cost;
+        }
+    });
+
+    return { coin, gem };
+};
+
+const getEffectiveWallet = (
+    wallet: WalletDto | null,
+    queuedPurchases: PurchaseMap,
+    inFlightPurchases: PurchaseMap,
+    poolsById: ReadonlyMap<number, TreePoolDto>,
+): WalletDto | null => {
+    if (!wallet) {
+        return null;
+    }
+
+    const queuedCost = getReservedCost(queuedPurchases, poolsById);
+    const inFlightCost = getReservedCost(inFlightPurchases, poolsById);
+
+    return {
+        coin: Math.max(0, wallet.coin - queuedCost.coin - inFlightCost.coin),
+        gem: Math.max(0, wallet.gem - queuedCost.gem - inFlightCost.gem),
+    };
 };
 
 const getErrorMessage = (error: any, fallback: string) =>
@@ -119,15 +189,16 @@ const WalletChip: React.FC<WalletChipProps> = ({ image, value }) => (
 interface SeedRowProps {
     pool: TreePoolDto;
     wallet: WalletDto | null;
-    buying: boolean;
+    queuedQuantity: number;
     onBuy: (pool: TreePoolDto) => void;
 }
 
-const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, buying, onBuy }) => {
+const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, queuedQuantity, onBuy }) => {
     const currencyAsset = getCurrencyAsset(pool.currencyType);
     const affordable = canBuyPool(pool, wallet);
-    const disabled = buying || !affordable;
+    const disabled = !affordable;
     const limitedLabel = getLimitedLabel(pool);
+    const displayedOwnedQuantity = pool.ownedSeedQuantity + queuedQuantity;
 
     return (
         <View style={styles.seedRow}>
@@ -141,7 +212,9 @@ const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, buying, onBuy }) => {
 
             <View style={styles.seedInfo}>
                 <Text numberOfLines={1} style={styles.seedName}>{pool.name}</Text>
-                <Text style={styles.ownedText}>Owned: {pool.ownedSeedQuantity}</Text>
+                <Text style={styles.ownedText}>
+                    Owned: {displayedOwnedQuantity}{queuedQuantity > 0 ? ` (+${queuedQuantity})` : ''}
+                </Text>
                 {limitedLabel ? (
                     <View style={styles.durationPill}>
                         <Text style={styles.durationText}>{limitedLabel}</Text>
@@ -155,20 +228,14 @@ const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, buying, onBuy }) => {
                 disabled={disabled}
                 onPress={() => onBuy(pool)}
             >
-                {buying ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
+                {currencyAsset ? (
+                    <Image source={currencyAsset} style={styles.buyAsset} resizeMode="contain" />
                 ) : (
-                    <>
-                        {currencyAsset ? (
-                            <Image source={currencyAsset} style={styles.buyAsset} resizeMode="contain" />
-                        ) : (
-                            <Icon name="tag" size={scale.ms(16)} color="#FFFFFF" />
-                        )}
-                        <Text style={styles.buyText}>
-                            {affordable ? formatNumber(pool.cost) : 'Not enough'}
-                        </Text>
-                    </>
+                    <Icon name="tag" size={scale.ms(16)} color="#FFFFFF" />
                 )}
+                <Text style={styles.buyText}>
+                    {affordable ? formatNumber(pool.cost) : 'Not enough'}
+                </Text>
             </TouchableOpacity>
         </View>
     );
@@ -179,7 +246,7 @@ interface SeedSectionProps {
     iconName?: string;
     pools: TreePoolDto[];
     wallet: WalletDto | null;
-    buyingPoolId: number | null;
+    queuedPurchases: PurchaseMap;
     onBuy: (pool: TreePoolDto) => void;
 }
 
@@ -188,7 +255,7 @@ const SeedSection: React.FC<SeedSectionProps> = ({
     iconName,
     pools,
     wallet,
-    buyingPoolId,
+    queuedPurchases,
     onBuy,
 }) => {
     if (pools.length === 0) {
@@ -208,7 +275,7 @@ const SeedSection: React.FC<SeedSectionProps> = ({
                         key={pool.id}
                         pool={pool}
                         wallet={wallet}
-                        buying={buyingPoolId === pool.id}
+                        queuedQuantity={getPurchaseQuantity(queuedPurchases, pool.id)}
                         onBuy={onBuy}
                     />
                 ))}
@@ -223,7 +290,12 @@ const ShopScreen = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [buyingPoolId, setBuyingPoolId] = useState<number | null>(null);
+    const [queuedPurchases, setQueuedPurchases] = useState<PurchaseMap>({});
+    const [inFlightPurchases, setInFlightPurchases] = useState<PurchaseMap>({});
+
+    const queuedPurchasesRef = useRef<PurchaseMap>({});
+    const inFlightPurchasesRef = useRef<PurchaseMap>({});
+    const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { permanentPools, limitedPools } = useMemo(() => {
         const sorted = [...treePools].sort((a, b) => a.id - b.id);
@@ -233,6 +305,27 @@ const ShopScreen = () => {
             limitedPools: sorted.filter(isLimitedPool),
         };
     }, [treePools]);
+
+    const treePoolsById = useMemo(
+        () => new Map(treePools.map(pool => [pool.id, pool])),
+        [treePools],
+    );
+
+    const reservedPurchases = useMemo(() => {
+        const purchases = { ...inFlightPurchases };
+
+        Object.entries(queuedPurchases).forEach(([treePoolIdKey, quantity]) => {
+            const treePoolId = Number(treePoolIdKey);
+            purchases[treePoolId] = getPurchaseQuantity(purchases, treePoolId) + quantity;
+        });
+
+        return purchases;
+    }, [inFlightPurchases, queuedPurchases]);
+
+    const effectiveWallet = useMemo(
+        () => getEffectiveWallet(wallet, queuedPurchases, inFlightPurchases, treePoolsById),
+        [inFlightPurchases, queuedPurchases, treePoolsById, wallet],
+    );
 
     const loadShop = useCallback(async (showFullLoader = false) => {
         if (showFullLoader) {
@@ -263,29 +356,99 @@ const ShopScreen = () => {
         loadShop(true);
     }, [loadShop]);
 
-    const handleBuy = useCallback(async (pool: TreePoolDto) => {
-        if (!canBuyPool(pool, wallet)) {
+    const clearFlushTimer = useCallback(() => {
+        if (flushTimerRef.current) {
+            clearTimeout(flushTimerRef.current);
+            flushTimerRef.current = null;
+        }
+    }, []);
+
+    const resetPurchaseBuffers = useCallback(() => {
+        clearFlushTimer();
+        queuedPurchasesRef.current = {};
+        inFlightPurchasesRef.current = {};
+        setQueuedPurchases({});
+        setInFlightPurchases({});
+    }, [clearFlushTimer]);
+
+    const flushQueuedPurchases = useCallback(async () => {
+        const batch = queuedPurchasesRef.current;
+        const items = Object.entries(batch)
+            .map(([treePoolId, quantity]) => ({
+                treePoolId: Number(treePoolId),
+                quantity,
+            }))
+            .filter(item => item.quantity > 0);
+
+        if (items.length === 0) {
+            return;
+        }
+
+        queuedPurchasesRef.current = {};
+        setQueuedPurchases({});
+
+        inFlightPurchasesRef.current = items.reduce<PurchaseMap>(
+            (purchases, item) => addPurchaseQuantity(purchases, item.treePoolId, item.quantity),
+            inFlightPurchasesRef.current,
+        );
+        setInFlightPurchases(inFlightPurchasesRef.current);
+
+        try {
+            const result = await buySeedPackages({ items });
+            const batchPurchases = items.reduce<PurchaseMap>(
+                (purchases, item) => addPurchaseQuantity(purchases, item.treePoolId, item.quantity),
+                {},
+            );
+
+            inFlightPurchasesRef.current = subtractPurchaseQuantities(
+                inFlightPurchasesRef.current,
+                batchPurchases,
+            );
+            setInFlightPurchases(inFlightPurchasesRef.current);
+
+            setWallet(result.wallet);
+            setTreePools(prev => prev.map(pool => {
+                const seedPackage = result.seedPackages.find(item => item.treePoolId === pool.id);
+                return seedPackage
+                    ? { ...pool, ownedSeedQuantity: seedPackage.quantity }
+                    : pool;
+            }));
+        } catch (error: any) {
+            resetPurchaseBuffers();
+            Alert.alert('Purchase failed', getErrorMessage(error, 'Cannot buy this seed package'));
+            await loadShop(false);
+        }
+    }, [loadShop, resetPurchaseBuffers]);
+
+    const schedulePurchaseFlush = useCallback(() => {
+        clearFlushTimer();
+        flushTimerRef.current = setTimeout(() => {
+            flushTimerRef.current = null;
+            flushQueuedPurchases();
+        }, BUY_DEBOUNCE_MS);
+    }, [clearFlushTimer, flushQueuedPurchases]);
+
+    useEffect(() => () => {
+        clearFlushTimer();
+    }, [clearFlushTimer]);
+
+    const handleBuy = useCallback((pool: TreePoolDto) => {
+        const currentEffectiveWallet = getEffectiveWallet(
+            wallet,
+            queuedPurchasesRef.current,
+            inFlightPurchasesRef.current,
+            treePoolsById,
+        );
+
+        if (!canBuyPool(pool, currentEffectiveWallet)) {
             Alert.alert('Not enough balance', 'You do not have enough currency to buy this seed package.');
             return;
         }
 
-        setBuyingPoolId(pool.id);
-
-        try {
-            const result = await buySeedPackage(pool.id);
-
-            setWallet(result.wallet);
-            setTreePools(prev => prev.map(item => (
-                item.id === pool.id
-                    ? { ...item, ownedSeedQuantity: result.seedPackage.quantity }
-                    : item
-            )));
-        } catch (error: any) {
-            Alert.alert('Purchase failed', getErrorMessage(error, 'Cannot buy this seed package'));
-        } finally {
-            setBuyingPoolId(null);
-        }
-    }, [wallet]);
+        queuedPurchasesRef.current = addPurchaseQuantity(queuedPurchasesRef.current, pool.id, 1);
+        setQueuedPurchases(queuedPurchasesRef.current);
+        schedulePurchaseFlush();
+    }, [schedulePurchaseFlush, treePoolsById, wallet]);
 
     if (loading) {
         return (
@@ -312,8 +475,8 @@ const ShopScreen = () => {
                 )}
             >
                 <View style={styles.walletRow}>
-                    <WalletChip image={assetCoin} value={wallet?.coin ?? 0} />
-                    <WalletChip image={assetGem} value={wallet?.gem ?? 0} />
+                    <WalletChip image={assetCoin} value={effectiveWallet?.coin ?? 0} />
+                    <WalletChip image={assetGem} value={effectiveWallet?.gem ?? 0} />
                 </View>
 
                 {errorMessage ? (
@@ -334,16 +497,16 @@ const ShopScreen = () => {
                         <SeedSection
                             title="Permanent"
                             pools={permanentPools}
-                            wallet={wallet}
-                            buyingPoolId={buyingPoolId}
+                            wallet={effectiveWallet}
+                            queuedPurchases={reservedPurchases}
                             onBuy={handleBuy}
                         />
                         <SeedSection
                             title="Limited"
                             iconName="clock"
                             pools={limitedPools}
-                            wallet={wallet}
-                            buyingPoolId={buyingPoolId}
+                            wallet={effectiveWallet}
+                            queuedPurchases={reservedPurchases}
                             onBuy={handleBuy}
                         />
                     </View>

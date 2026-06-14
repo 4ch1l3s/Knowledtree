@@ -61,6 +61,61 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
     }
 
     [Fact]
+    public async Task BuySeedPackages_Should_Debit_Wallet_And_Add_Batched_Inventory()
+    {
+        var (_, pool) = await CreateActivePoolAsync(cost: 100, packageImageKey: "starter_pack");
+
+        var result = await _storeAppService.BuySeedPackagesAsync(new BuySeedPackagesDto
+        {
+            Items =
+            [
+                new BuySeedPackageItemDto
+                {
+                    TreePoolId = pool.Id,
+                    Quantity = 3
+                }
+            ]
+        });
+
+        result.Wallet.Coin.ShouldBe(StoreAppService.StarterCoin - 300);
+        result.SeedPackages.Single().TreePoolId.ShouldBe(pool.Id);
+        result.SeedPackages.Single().PackageImageKey.ShouldBe("starter_pack");
+        result.SeedPackages.Single().Quantity.ShouldBe(3);
+
+        var package = await GetSeedPackageAsync(pool.Id);
+        package.Quantity.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task BuySeedPackages_Should_Aggregate_Duplicate_Items()
+    {
+        var (_, pool) = await CreateActivePoolAsync(cost: 100);
+
+        var result = await _storeAppService.BuySeedPackagesAsync(new BuySeedPackagesDto
+        {
+            Items =
+            [
+                new BuySeedPackageItemDto
+                {
+                    TreePoolId = pool.Id,
+                    Quantity = 2
+                },
+                new BuySeedPackageItemDto
+                {
+                    TreePoolId = pool.Id,
+                    Quantity = 3
+                }
+            ]
+        });
+
+        result.Wallet.Coin.ShouldBe(StoreAppService.StarterCoin - 500);
+        result.SeedPackages.Single().Quantity.ShouldBe(5);
+
+        var package = await GetSeedPackageAsync(pool.Id);
+        package.Quantity.ShouldBe(5);
+    }
+
+    [Fact]
     public async Task BuySeedPackage_Should_Reject_Insufficient_Balance()
     {
         var (_, pool) = await CreateActivePoolAsync(cost: 2000);
@@ -69,6 +124,30 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
             _storeAppService.BuySeedPackageAsync(pool.Id));
 
         exception.Code.ShouldBe(KnowledtreeDomainErrorCodes.InsufficientWalletBalance);
+    }
+
+    [Fact]
+    public async Task BuySeedPackages_Should_Reject_When_Total_Cost_Exceeds_Balance()
+    {
+        var (_, pool) = await CreateActivePoolAsync(cost: 400);
+
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            _storeAppService.BuySeedPackagesAsync(new BuySeedPackagesDto
+            {
+                Items =
+                [
+                    new BuySeedPackageItemDto
+                    {
+                        TreePoolId = pool.Id,
+                        Quantity = 3
+                    }
+                ]
+            }));
+
+        exception.Code.ShouldBe(KnowledtreeDomainErrorCodes.InsufficientWalletBalance);
+
+        var packages = await _storeAppService.GetMySeedPackagesAsync();
+        packages.Any(x => x.TreePoolId == pool.Id).ShouldBeFalse();
     }
 
     [Fact]
