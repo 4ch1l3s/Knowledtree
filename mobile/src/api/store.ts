@@ -48,6 +48,20 @@ export interface BuySeedPackageResultDto {
     seedPackage: SeedPackageDto;
 }
 
+export interface BuySeedPackageItemDto {
+    treePoolId: number;
+    quantity: number;
+}
+
+export interface BuySeedPackagesDto {
+    items: BuySeedPackageItemDto[];
+}
+
+export interface BuySeedPackagesResultDto {
+    wallet: WalletDto;
+    seedPackages: SeedPackageDto[];
+}
+
 export const getMyWallet = async (): Promise<WalletDto> => {
     const response = await client.get<WalletDto>('/api/store/wallet');
     return response.data;
@@ -65,5 +79,10 @@ export const getMySeedPackages = async (): Promise<SeedPackageDto[]> => {
 
 export const buySeedPackage = async (treePoolId: number): Promise<BuySeedPackageResultDto> => {
     const response = await client.post<BuySeedPackageResultDto>(`/api/store/tree-pools/${treePoolId}/buy`);
+    return response.data;
+};
+
+export const buySeedPackages = async (input: BuySeedPackagesDto): Promise<BuySeedPackagesResultDto> => {
+    const response = await client.post<BuySeedPackagesResultDto>('/api/store/seed-package-purchases/batch', input);
     return response.data;
 };

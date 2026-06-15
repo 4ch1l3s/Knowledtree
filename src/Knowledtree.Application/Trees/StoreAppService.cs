@@ -94,38 +94,83 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
 
     public virtual async Task<BuySeedPackageResultDto> BuySeedPackageAsync(int treePoolId)
     {
-        var userId = CurrentUser.GetId();
-        var pool = await _treePoolRepository.GetAsync(treePoolId);
-
-        if (!pool.IsAvailableAt(Clock.Now))
+        var result = await BuySeedPackagesAsync(new BuySeedPackagesDto
         {
-            throw new BusinessException(KnowledtreeDomainErrorCodes.TreePoolUnavailable);
+            Items =
+            [
+                new BuySeedPackageItemDto
+                {
+                    TreePoolId = treePoolId,
+                    Quantity = 1
+                }
+            ]
+        });
+
+        return new BuySeedPackageResultDto
+        {
+            Wallet = result.Wallet,
+            SeedPackage = result.SeedPackages.Single(x => x.TreePoolId == treePoolId)
+        };
+    }
+
+    public virtual async Task<BuySeedPackagesResultDto> BuySeedPackagesAsync(BuySeedPackagesDto input)
+    {
+        var userId = CurrentUser.GetId();
+        var quantitiesByPoolId = AggregatePurchaseItems(input);
+        var poolsById = new Dictionary<int, TreePool>();
+        var now = Clock.Now;
+
+        foreach (var treePoolId in quantitiesByPoolId.Keys)
+        {
+            var pool = await _treePoolRepository.GetAsync(treePoolId);
+            if (!pool.IsAvailableAt(now))
+            {
+                throw new BusinessException(KnowledtreeDomainErrorCodes.TreePoolUnavailable);
+            }
+
+            var trees = await GetPoolTreesAsync(pool.Id);
+            TreePoolValidationHelper.EnsureRequiredRarityItems(pool, trees);
+            poolsById[pool.Id] = pool;
         }
 
-        var trees = await GetPoolTreesAsync(pool.Id);
-        TreePoolValidationHelper.EnsureRequiredRarityItems(pool, trees);
+        var (coinCost, gemCost) = CalculatePurchaseCosts(poolsById, quantitiesByPoolId);
 
         var wallet = await GetOrCreateWalletAsync(userId);
-        DebitWallet(wallet, pool);
+        DebitWallet(wallet, coinCost, gemCost);
 
-        var seedPackage = await FindSeedPackageAsync(userId, pool.Id);
-        if (seedPackage == null)
+        var poolIds = quantitiesByPoolId.Keys.ToList();
+        var existingPackages = await AsyncExecuter.ToListAsync(
+            (await _seedPackageRepository.GetQueryableAsync())
+            .Where(x => x.UserId == userId && poolIds.Contains(x.TreePoolId)));
+        var seedPackagesByPoolId = existingPackages.ToDictionary(x => x.TreePoolId);
+        var updatedSeedPackages = new List<SeedPackageDto>();
+
+        foreach (var item in quantitiesByPoolId)
         {
-            seedPackage = new UserSeedPackage(GuidGenerator.Create(), userId, pool.Id, 1);
-            await _seedPackageRepository.InsertAsync(seedPackage, autoSave: true);
-        }
-        else
-        {
-            seedPackage.Add(1);
-            await _seedPackageRepository.UpdateAsync(seedPackage, autoSave: true);
+            var treePoolId = item.Key;
+            var quantity = item.Value;
+            var pool = poolsById[treePoolId];
+
+            if (!seedPackagesByPoolId.TryGetValue(treePoolId, out var seedPackage))
+            {
+                seedPackage = new UserSeedPackage(GuidGenerator.Create(), userId, treePoolId, quantity);
+                await _seedPackageRepository.InsertAsync(seedPackage, autoSave: false);
+            }
+            else
+            {
+                seedPackage.Add(quantity);
+                await _seedPackageRepository.UpdateAsync(seedPackage, autoSave: false);
+            }
+
+            updatedSeedPackages.Add(MapSeedPackage(seedPackage, pool.Name, pool.PackageImageKey));
         }
 
         await _walletRepository.UpdateAsync(wallet, autoSave: true);
 
-        return new BuySeedPackageResultDto
+        return new BuySeedPackagesResultDto
         {
             Wallet = MapWallet(wallet),
-            SeedPackage = MapSeedPackage(seedPackage, pool.Name, pool.PackageImageKey)
+            SeedPackages = updatedSeedPackages
         };
     }
 
@@ -171,24 +216,89 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
             (await _treeRepository.GetQueryableAsync()).Where(x => treeIds.Contains(x.Id)));
     }
 
-    protected virtual void DebitWallet(UserWallet wallet, TreePool pool)
+    protected virtual Dictionary<int, int> AggregatePurchaseItems(BuySeedPackagesDto input)
     {
-        if (pool.Cost == 0)
+        if (input?.Items == null || input.Items.Count == 0)
         {
-            return;
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidSeedPackageQuantity);
         }
 
-        switch (pool.CurrencyType)
+        var quantitiesByPoolId = new Dictionary<int, int>();
+        foreach (var item in input.Items)
         {
-            case CurrencyType.Gold:
-                wallet.DebitCoin(pool.Cost);
-                break;
-            case CurrencyType.Gem:
-                wallet.DebitGem(pool.Cost);
-                break;
-            case CurrencyType.FreeTicket:
-            default:
-                throw new BusinessException(KnowledtreeDomainErrorCodes.UnsupportedTreePoolCurrency);
+            if (item.Quantity <= 0)
+            {
+                throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidSeedPackageQuantity);
+            }
+
+            quantitiesByPoolId.TryGetValue(item.TreePoolId, out var currentQuantity);
+            var nextQuantity = (long)currentQuantity + item.Quantity;
+            if (nextQuantity > int.MaxValue)
+            {
+                throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidSeedPackageQuantity);
+            }
+
+            quantitiesByPoolId[item.TreePoolId] = (int)nextQuantity;
+        }
+
+        return quantitiesByPoolId;
+    }
+
+    protected virtual (long CoinCost, long GemCost) CalculatePurchaseCosts(
+        IReadOnlyDictionary<int, TreePool> poolsById,
+        IReadOnlyDictionary<int, int> quantitiesByPoolId)
+    {
+        long coinCost = 0;
+        long gemCost = 0;
+
+        try
+        {
+            foreach (var item in quantitiesByPoolId)
+            {
+                var pool = poolsById[item.Key];
+                if (pool.Cost == 0)
+                {
+                    continue;
+                }
+
+                var cost = checked((long)pool.Cost * item.Value);
+                switch (pool.CurrencyType)
+                {
+                    case CurrencyType.Gold:
+                        coinCost = checked(coinCost + cost);
+                        break;
+                    case CurrencyType.Gem:
+                        gemCost = checked(gemCost + cost);
+                        break;
+                    case CurrencyType.FreeTicket:
+                    default:
+                        throw new BusinessException(KnowledtreeDomainErrorCodes.UnsupportedTreePoolCurrency);
+                }
+            }
+        }
+        catch (OverflowException)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidWalletAmount);
+        }
+
+        return (coinCost, gemCost);
+    }
+
+    protected virtual void DebitWallet(UserWallet wallet, long coinCost, long gemCost)
+    {
+        if (wallet.Coin < coinCost || wallet.Gem < gemCost)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InsufficientWalletBalance);
+        }
+
+        if (coinCost > 0)
+        {
+            wallet.DebitCoin(coinCost);
+        }
+
+        if (gemCost > 0)
+        {
+            wallet.DebitGem(gemCost);
         }
     }
 

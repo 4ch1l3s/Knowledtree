@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Knowledtree.Trees;
 
@@ -30,4 +31,26 @@ public class BuySeedPackageResultDto
     public WalletDto Wallet { get; set; } = null!;
 
     public SeedPackageDto SeedPackage { get; set; } = null!;
+}
+
+[Serializable]
+public class BuySeedPackageItemDto
+{
+    public int TreePoolId { get; set; }
+
+    public int Quantity { get; set; }
+}
+
+[Serializable]
+public class BuySeedPackagesDto
+{
+    public List<BuySeedPackageItemDto> Items { get; set; } = [];
+}
+
+[Serializable]
+public class BuySeedPackagesResultDto
+{
+    public WalletDto Wallet { get; set; } = null!;
+
+    public List<SeedPackageDto> SeedPackages { get; set; } = [];
 }
