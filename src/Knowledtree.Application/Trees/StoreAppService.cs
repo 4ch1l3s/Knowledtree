@@ -21,19 +21,22 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
     private readonly IRepository<TreePoolItem, int> _treePoolItemRepository;
     private readonly IRepository<Tree, int> _treeRepository;
     private readonly IRepository<UserSeedPackage, Guid> _seedPackageRepository;
+    private readonly IRepository<UserTree, Guid> _userTreeRepository;
 
     public StoreAppService(
         IRepository<UserWallet, Guid> walletRepository,
         IRepository<TreePool, int> treePoolRepository,
         IRepository<TreePoolItem, int> treePoolItemRepository,
         IRepository<Tree, int> treeRepository,
-        IRepository<UserSeedPackage, Guid> seedPackageRepository)
+        IRepository<UserSeedPackage, Guid> seedPackageRepository,
+        IRepository<UserTree, Guid> userTreeRepository)
     {
         _walletRepository = walletRepository;
         _treePoolRepository = treePoolRepository;
         _treePoolItemRepository = treePoolItemRepository;
         _treeRepository = treeRepository;
         _seedPackageRepository = seedPackageRepository;
+        _userTreeRepository = userTreeRepository;
     }
 
     public virtual async Task<WalletDto> GetMyWalletAsync()
@@ -89,6 +92,25 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
                 poolsById.TryGetValue(x.TreePoolId, out var pool);
                 return MapSeedPackage(x, pool?.Name ?? string.Empty, pool?.PackageImageKey);
             })
+            .ToList();
+    }
+
+    public virtual async Task<List<OwnedTreeDto>> GetMyTreesAsync()
+    {
+        var userTrees = await AsyncExecuter.ToListAsync(
+            (await _userTreeRepository.GetQueryableAsync()).Where(x => x.UserId == CurrentUser.GetId()));
+        var treeIds = userTrees.Select(x => x.TreeId).Distinct().ToList();
+        var trees = treeIds.Count == 0
+            ? []
+            : await AsyncExecuter.ToListAsync(
+                (await _treeRepository.GetQueryableAsync()).Where(x => treeIds.Contains(x.Id)));
+        var treesById = trees.ToDictionary(x => x.Id);
+
+        return userTrees
+            .Where(x => treesById.ContainsKey(x.TreeId))
+            .Select(x => MapOwnedTree(x, treesById[x.TreeId]))
+            .OrderBy(x => x.Tree.Rarity)
+            .ThenBy(x => x.Tree.Name)
             .ToList();
     }
 
@@ -323,6 +345,18 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
             TreePoolName = treePoolName,
             PackageImageKey = packageImageKey,
             Quantity = seedPackage.Quantity
+        };
+    }
+
+    protected virtual OwnedTreeDto MapOwnedTree(UserTree userTree, Tree tree)
+    {
+        return new OwnedTreeDto
+        {
+            Id = userTree.Id,
+            Tree = ObjectMapper.Map<Tree, TreeDto>(tree),
+            TotalObtainedCount = userTree.TotalObtainedCount,
+            IsPlanted = userTree.IsPlanted,
+            FirstObtainedAt = userTree.FirstObtainedAt
         };
     }
 

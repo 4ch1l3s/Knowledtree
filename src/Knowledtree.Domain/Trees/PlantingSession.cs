@@ -28,6 +28,8 @@ public class PlantingSession : AuditedAggregateRoot<Guid>
 
     public virtual int DuplicateGemReward { get; protected set; }
 
+    public virtual int DuplicateCoinReward { get; protected set; }
+
     protected PlantingSession()
     {
     }
@@ -55,7 +57,8 @@ public class PlantingSession : AuditedAggregateRoot<Guid>
         int resultTreeId,
         DateTime? clientEndTime,
         DateTime serverEndTime,
-        int duplicateGemReward)
+        int duplicateGemReward,
+        int duplicateCoinReward)
     {
         if (Status != PlantingSessionStatus.Growing)
         {
@@ -66,6 +69,7 @@ public class PlantingSession : AuditedAggregateRoot<Guid>
         ClientEndTime = clientEndTime;
         ServerEndTime = serverEndTime;
         DuplicateGemReward = duplicateGemReward;
+        DuplicateCoinReward = duplicateCoinReward;
         Status = PlantingSessionStatus.Claimed;
     }
 

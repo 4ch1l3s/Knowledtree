@@ -10,6 +10,7 @@ import GrowTreeScreen from '../screens/GrowTreeScreen';
 import TagsScreen from '../screens/TagsScreen';
 import FriendScreen from '../screens/FriendScreen';
 import ShopScreen from '../screens/ShopScreen';
+import TreepediaScreen from '../screens/TreepediaScreen';
 
 // Define the parameter list for the stack navigator
 export type RootStackParamList = {
@@ -17,6 +18,7 @@ export type RootStackParamList = {
     Register: undefined;
     Profile: undefined;
     GrowTree: undefined;
+    Treepedia: undefined;
     Shop: undefined;
     Tags: undefined;
     Friend: undefined;
@@ -47,6 +49,7 @@ const AppNavigator = () => {
                     <>
                         <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="GrowTree" component={GrowTreeScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="Treepedia" component={TreepediaScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Shop" component={ShopScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Tags" component={TagsScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Friend" component={FriendScreen} options={{ headerShown: false }} />

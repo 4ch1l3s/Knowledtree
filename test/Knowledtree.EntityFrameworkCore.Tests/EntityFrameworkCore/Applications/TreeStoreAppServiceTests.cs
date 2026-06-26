@@ -219,10 +219,10 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
     }
 
     [Fact]
-    public async Task Complete_Should_Increment_Duplicate_And_Credit_Gems()
+    public async Task Complete_Should_Increment_Common_Duplicate_And_Credit_Coins()
     {
         var (tree, pool) = await CreateActivePoolAsync(cost: 100);
-        await _storeAppService.GetMyWalletAsync();
+        var initialWallet = await _storeAppService.GetMyWalletAsync();
 
         await WithUnitOfWorkAsync(async () =>
         {
@@ -242,8 +242,37 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
 
         result.IsDuplicate.ShouldBeTrue();
         result.TotalObtainedCount.ShouldBe(2);
-        result.Session.DuplicateGemReward.ShouldBe(1);
-        result.Wallet.Gem.ShouldBe(StoreAppService.StarterGem + 1);
+        result.Session.DuplicateGemReward.ShouldBe(0);
+        result.Session.DuplicateCoinReward.ShouldBe(200);
+        result.BonusGemReward.ShouldBe(0);
+        result.BonusCoinReward.ShouldBe(200);
+        result.Wallet.Coin.ShouldBe(initialWallet.Coin + 200);
+        result.Wallet.Gem.ShouldBe(initialWallet.Gem);
+    }
+
+    [Fact]
+    public async Task GetMyTrees_Should_Return_Owned_Tree_Counts()
+    {
+        var (tree, pool) = await CreateActivePoolAsync(cost: 100);
+
+        await WithUnitOfWorkAsync(async () =>
+        {
+            var userTree = new UserTree(
+                Guid.NewGuid(),
+                CurrentUserId,
+                tree.Id,
+                pool.Id,
+                DateTime.Now.AddDays(-1));
+            userTree.IncrementObtainedCount();
+
+            await _userTreeRepository.InsertAsync(userTree);
+        });
+
+        var trees = await _storeAppService.GetMyTreesAsync();
+        var ownedTree = trees.Single(x => x.Tree.Id == tree.Id);
+
+        ownedTree.Tree.Name.ShouldBe(tree.Name);
+        ownedTree.TotalObtainedCount.ShouldBe(2);
     }
 
     private async Task<(TreeDto Tree, TreePoolDto Pool)> CreateActivePoolAsync(

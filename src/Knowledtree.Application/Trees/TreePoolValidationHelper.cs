@@ -37,6 +37,13 @@ internal static class TreePoolValidationHelper
     }
 
     public static void EnsureRequiredRarityItems(
+        (decimal CommonRate, decimal RareRate, decimal GoldRate) rates,
+        IEnumerable<Tree> trees)
+    {
+        EnsureRequiredRarityItems(rates.CommonRate, rates.RareRate, rates.GoldRate, trees);
+    }
+
+    public static void EnsureRequiredRarityItems(
         decimal commonRate,
         decimal rareRate,
         decimal goldRate,

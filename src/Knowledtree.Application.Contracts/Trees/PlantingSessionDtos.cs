@@ -47,6 +47,8 @@ public class PlantingSessionDto
     public PlantingSessionStatus Status { get; set; }
 
     public int DuplicateGemReward { get; set; }
+
+    public int DuplicateCoinReward { get; set; }
 }
 
 [Serializable]
@@ -57,6 +59,10 @@ public class CompletePlantingSessionResultDto
     public TreeDto ResultTree { get; set; } = null!;
 
     public bool IsDuplicate { get; set; }
+
+    public int BonusCoinReward { get; set; }
+
+    public int BonusGemReward { get; set; }
 
     public int TotalObtainedCount { get; set; }
 
