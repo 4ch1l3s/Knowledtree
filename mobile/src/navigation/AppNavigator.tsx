@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthContext } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import GrowTreeScreen from '../screens/GrowTreeScreen';
 import TagsScreen from '../screens/TagsScreen';
@@ -16,6 +17,7 @@ import TreepediaScreen from '../screens/TreepediaScreen';
 export type RootStackParamList = {
     Login: undefined;
     Register: undefined;
+    ForgotPassword: undefined;
     Profile: undefined;
     GrowTree: undefined;
     Treepedia: undefined;
@@ -44,6 +46,7 @@ const AppNavigator = () => {
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ headerShown: false }} />
                     </>
                 ) : (
                     <>

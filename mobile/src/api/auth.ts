@@ -54,3 +54,19 @@ export interface RegisterInput {
 export const register = async (input: RegisterInput): Promise<void> => {
     await client.post('/api/account/register', input);
 };
+
+export interface SendPasswordResetCodeInput {
+    email: string;
+    appName?: string;
+    returnUrl?: string;
+    returnUrlHash?: string;
+}
+
+export const sendPasswordResetCode = async (
+    input: SendPasswordResetCodeInput,
+): Promise<void> => {
+    await client.post('/api/account/send-password-reset-code', {
+        appName: 'MVC',
+        ...input,
+    });
+};
