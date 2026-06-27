@@ -127,6 +127,15 @@ const LoginScreen = () => {
             color: '#464E47',
             fontWeight: 'bold' as TextStyle['fontWeight'],
             marginLeft: scale.s(4),
+        },
+        forgotLinkContainer: {
+            marginTop: scale.vs(14),
+            alignItems: 'center' as const,
+        },
+        forgotLink: {
+            fontSize: scale.ms(12),
+            color: '#157A42',
+            fontWeight: 'bold' as TextStyle['fontWeight'],
         }
     };
 
@@ -199,6 +208,13 @@ const LoginScreen = () => {
                             <Text style={dynamicStyles.registerLink}>Register</Text>
                         </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity
+                        style={dynamicStyles.forgotLinkContainer}
+                        onPress={() => navigation.navigate('ForgotPassword')}
+                    >
+                        <Text style={dynamicStyles.forgotLink}>Forgot password?</Text>
+                    </TouchableOpacity>
 
                 </ScrollView>
             </KeyboardAvoidingView>

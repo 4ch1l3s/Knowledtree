@@ -15,6 +15,11 @@ namespace Knowledtree.Trees;
 [Authorize]
 public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSessionAppService
 {
+    private const int CommonDuplicateCoinReward = 200;
+    private const int RareDuplicateGemReward = 1;
+    private const int GoldDuplicateGemReward = 5;
+    private const int DevelopmentFocusDurationSeconds = 10;
+
     private readonly IRepository<PlantingSession, Guid> _plantingSessionRepository;
     private readonly IRepository<TreePool, int> _treePoolRepository;
     private readonly IRepository<TreePoolItem, int> _treePoolItemRepository;
@@ -78,6 +83,9 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
 
         var trees = await GetPoolTreesAsync(pool.Id);
         TreePoolValidationHelper.EnsureRequiredRarityItems(pool, trees);
+        TreePoolValidationHelper.EnsureRequiredRarityItems(
+            GetEffectiveRarityRates(pool, input.PlannedDurationMinutes),
+            trees);
 
         var seedPackage = await FindSeedPackageAsync(userId, pool.Id);
         if (seedPackage == null || seedPackage.Quantity <= 0)
@@ -114,7 +122,7 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         }
 
         var serverEndTime = Clock.Now;
-        if ((serverEndTime - session.ServerStartTime).TotalMinutes < session.PlannedDurationMinutes)
+        if ((serverEndTime - session.ServerStartTime).TotalSeconds < GetRequiredFocusDurationSeconds(session))
         {
             throw new BusinessException(KnowledtreeDomainErrorCodes.PlantingSessionNotReady);
         }
@@ -122,11 +130,15 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         var pool = await _treePoolRepository.GetAsync(session.TreePoolId);
         var trees = await GetPoolTreesAsync(pool.Id);
         TreePoolValidationHelper.EnsureRequiredRarityItems(pool, trees);
+        TreePoolValidationHelper.EnsureRequiredRarityItems(
+            GetEffectiveRarityRates(pool, session.PlannedDurationMinutes),
+            trees);
 
-        var resultTree = RollTree(pool, trees);
+        var resultTree = RollTree(pool, trees, session.PlannedDurationMinutes);
         var userTree = await FindUserTreeAsync(userId, resultTree.Id);
         var isDuplicate = userTree != null;
         var duplicateGemReward = isDuplicate ? GetDuplicateGemReward(resultTree.Rarity) : 0;
+        var duplicateCoinReward = isDuplicate ? GetDuplicateCoinReward(resultTree.Rarity) : 0;
         var wallet = await GetOrCreateWalletAsync(userId);
 
         if (userTree == null)
@@ -137,6 +149,12 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         else
         {
             userTree.IncrementObtainedCount();
+            if (duplicateCoinReward > 0)
+            {
+                wallet.CreditCoin(duplicateCoinReward);
+                await _walletRepository.UpdateAsync(wallet, autoSave: true);
+            }
+
             if (duplicateGemReward > 0)
             {
                 wallet.CreditGem(duplicateGemReward);
@@ -146,7 +164,7 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
             await _userTreeRepository.UpdateAsync(userTree, autoSave: true);
         }
 
-        session.Complete(resultTree.Id, input.ClientEndTime, serverEndTime, duplicateGemReward);
+        session.Complete(resultTree.Id, input.ClientEndTime, serverEndTime, duplicateGemReward, duplicateCoinReward);
         await _plantingSessionRepository.UpdateAsync(session, autoSave: true);
 
         return new CompletePlantingSessionResultDto
@@ -154,14 +172,16 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
             Session = MapSession(session),
             ResultTree = ObjectMapper.Map<Tree, TreeDto>(resultTree),
             IsDuplicate = isDuplicate,
+            BonusCoinReward = duplicateCoinReward,
+            BonusGemReward = duplicateGemReward,
             TotalObtainedCount = userTree.TotalObtainedCount,
             Wallet = MapWallet(wallet)
         };
     }
 
-    protected virtual Tree RollTree(TreePool pool, List<Tree> trees)
+    protected virtual Tree RollTree(TreePool pool, List<Tree> trees, int plannedDurationMinutes)
     {
-        var rarity = RollRarity(pool);
+        var rarity = RollRarity(pool, plannedDurationMinutes);
         var candidates = trees.Where(x => x.Rarity == rarity).ToList();
         if (candidates.Count == 0)
         {
@@ -171,16 +191,17 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         return candidates[Random.Shared.Next(candidates.Count)];
     }
 
-    protected virtual TreeRarity RollRarity(TreePool pool)
+    protected virtual TreeRarity RollRarity(TreePool pool, int plannedDurationMinutes)
     {
         var roll = (decimal)(Random.Shared.NextDouble() * 100);
+        var (adjustedCommonRate, adjustedRareRate, _) = GetEffectiveRarityRates(pool, plannedDurationMinutes);
 
-        if (roll < pool.CommonRate)
+        if (roll < adjustedCommonRate)
         {
             return TreeRarity.Common;
         }
 
-        if (roll < pool.CommonRate + pool.RareRate)
+        if (roll < adjustedCommonRate + adjustedRareRate)
         {
             return TreeRarity.Rare;
         }
@@ -188,15 +209,79 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         return TreeRarity.Gold;
     }
 
+    protected virtual (decimal CommonRate, decimal RareRate, decimal GoldRate) GetEffectiveRarityRates(
+        TreePool pool,
+        int plannedDurationMinutes)
+    {
+        var rateFactor = GetRareGoldRateFactor(plannedDurationMinutes);
+        var adjustedGoldRate = pool.GoldRate * rateFactor;
+        var adjustedRareRate = pool.RareRate * rateFactor;
+
+        return (100m - adjustedRareRate - adjustedGoldRate, adjustedRareRate, adjustedGoldRate);
+    }
+
+    protected virtual decimal GetRareGoldRateFactor(int plannedDurationMinutes)
+    {
+        if (plannedDurationMinutes <= 30)
+        {
+            return 1m / 3m;
+        }
+
+        if (plannedDurationMinutes <= 90)
+        {
+            return Interpolate(plannedDurationMinutes, 30m, 90m, 1m / 3m, 2m / 3m);
+        }
+
+        if (plannedDurationMinutes < 180)
+        {
+            return Interpolate(plannedDurationMinutes, 90m, 180m, 2m / 3m, 1m);
+        }
+
+        return 1m;
+    }
+
+    private static decimal Interpolate(
+        decimal value,
+        decimal fromValue,
+        decimal toValue,
+        decimal fromFactor,
+        decimal toFactor)
+    {
+        return fromFactor + ((value - fromValue) / (toValue - fromValue)) * (toFactor - fromFactor);
+    }
+
     protected virtual int GetDuplicateGemReward(TreeRarity rarity)
     {
         return rarity switch
         {
-            TreeRarity.Common => 1,
-            TreeRarity.Rare => 5,
-            TreeRarity.Gold => 20,
+            TreeRarity.Rare => RareDuplicateGemReward,
+            TreeRarity.Gold => GoldDuplicateGemReward,
             _ => 0
         };
+    }
+
+    protected virtual int GetDuplicateCoinReward(TreeRarity rarity)
+    {
+        return rarity == TreeRarity.Common ? CommonDuplicateCoinReward : 0;
+    }
+
+    protected virtual int GetRequiredFocusDurationSeconds(PlantingSession session)
+    {
+        return IsDevelopmentEnvironment()
+            ? DevelopmentFocusDurationSeconds
+            : session.PlannedDurationMinutes * 60;
+    }
+
+    private static bool IsDevelopmentEnvironment()
+    {
+        return string.Equals(
+                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                "Development",
+                StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"),
+                "Development",
+                StringComparison.OrdinalIgnoreCase);
     }
 
     protected virtual async Task<UserWallet> GetOrCreateWalletAsync(Guid userId)

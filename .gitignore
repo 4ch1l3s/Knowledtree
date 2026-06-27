@@ -252,6 +252,7 @@ paket-files/
 *.sln.iml
 
 # Knowledtree
+**/appsettings.secrets.json
 src/Knowledtree.Web/Logs/*
 src/Knowledtree.Web.Host/Logs/*
 src/Knowledtree.AuthServer/Logs/*

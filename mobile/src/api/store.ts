@@ -43,6 +43,14 @@ export interface SeedPackageDto {
     quantity: number;
 }
 
+export interface OwnedTreeDto {
+    id: string;
+    tree: TreeDto;
+    totalObtainedCount: number;
+    isPlanted: boolean;
+    firstObtainedAt: string;
+}
+
 export interface BuySeedPackageResultDto {
     wallet: WalletDto;
     seedPackage: SeedPackageDto;
@@ -74,6 +82,11 @@ export const getAvailableTreePools = async (): Promise<TreePoolDto[]> => {
 
 export const getMySeedPackages = async (): Promise<SeedPackageDto[]> => {
     const response = await client.get<SeedPackageDto[]>('/api/store/seed-packages');
+    return response.data;
+};
+
+export const getMyTrees = async (): Promise<OwnedTreeDto[]> => {
+    const response = await client.get<OwnedTreeDto[]>('/api/store/my-trees');
     return response.data;
 };
 

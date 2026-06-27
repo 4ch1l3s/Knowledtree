@@ -274,6 +274,7 @@ public class KnowledtreeDbContext :
             b.Property(x => x.ServerStartTime).IsRequired();
             b.Property(x => x.Status).IsRequired().HasDefaultValue(PlantingSessionStatus.Growing);
             b.Property(x => x.DuplicateGemReward).IsRequired().HasDefaultValue(0);
+            b.Property(x => x.DuplicateCoinReward).IsRequired().HasDefaultValue(0);
 
             b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             b.HasOne<TreePool>().WithMany().HasForeignKey(x => x.TreePoolId).OnDelete(DeleteBehavior.Restrict);

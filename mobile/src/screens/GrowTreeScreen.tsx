@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -32,7 +32,14 @@ import {
     getMySeedPackages,
     SeedPackageDto,
 } from '../api/store';
+import {
+    CompletePlantingSessionResultDto,
+    PlantingSessionDto,
+    completePlantingSession,
+    startPlantingSession,
+} from '../api/plantingSessions';
 import { resolveSeedPackageImage } from '../utils/seedPackageAssets';
+import { getRarityColor, getRarityLabel, resolveTreeImage } from '../utils/treeAssets';
 
 const dirtAsset = require('../assets/dirt-asset.png');
 
@@ -40,6 +47,7 @@ const STEP_MINUTES = 5;
 const MIN_MINUTES = 30;
 const MAX_MINUTES = 180;
 const INITIAL_MINUTES = MIN_MINUTES;
+const DEVELOPMENT_FOCUS_SECONDS = 10;
 const VALUE_STEP_COUNT = (MAX_MINUTES - MIN_MINUTES) / STEP_MINUTES;
 const RING_SIZE = scale.s(240);
 const RING_RADIUS = RING_SIZE / 2;
@@ -67,7 +75,15 @@ const TAG_COLORS = [
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const formatFocusTime = (minutes: number) => `${minutes}:00`;
+const formatFocusTime = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
+const getFocusDurationSeconds = (plannedDurationMinutes: number) => (
+    __DEV__ ? DEVELOPMENT_FOCUS_SECONDS : plannedDurationMinutes * 60
+);
 
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.error?.message
@@ -107,7 +123,15 @@ const GrowTreeScreen = () => {
     const [formName, setFormName] = useState('');
     const [formColor, setFormColor] = useState(TAG_COLORS[0]);
     const [creatingTag, setCreatingTag] = useState(false);
+    const [activeSession, setActiveSession] = useState<PlantingSessionDto | null>(null);
+    const [remainingSeconds, setRemainingSeconds] = useState(getFocusDurationSeconds(INITIAL_MINUTES));
+    const [isStartingSession, setIsStartingSession] = useState(false);
+    const [isCompletingSession, setIsCompletingSession] = useState(false);
+    const [rewardResult, setRewardResult] = useState<CompletePlantingSessionResultDto | null>(null);
 
+    const canEditSession = !activeSession && !isStartingSession && !isCompletingSession;
+    const displaySeconds = activeSession ? remainingSeconds : getFocusDurationSeconds(focusMinutes);
+    const isReadyToClaim = !!activeSession && remainingSeconds <= 0;
     const progress = (focusMinutes - MIN_MINUTES) / (MAX_MINUTES - MIN_MINUTES);
     const strokeDashoffset = RING_CIRCUMFERENCE * (1 - progress);
     const knobAngle = progress * 360;
@@ -116,6 +140,29 @@ const GrowTreeScreen = () => {
     const knobY = RING_RADIUS - Math.cos(knobRadians) * KNOB_RADIUS - KNOB_SIZE / 2;
     const displayedTagName = selectedTag?.name || 'Deep Work';
     const displayedTagColor = selectedTag?.colorCode || '#3C6540';
+
+    useEffect(() => {
+        if (!activeSession) {
+            setRemainingSeconds(getFocusDurationSeconds(focusMinutes));
+            return undefined;
+        }
+
+        const updateRemaining = () => {
+            const serverStartMs = new Date(activeSession.serverStartTime).getTime();
+            const sessionEndMs = serverStartMs + getFocusDurationSeconds(activeSession.plannedDurationMinutes) * 1000;
+            const nextRemainingSeconds = Math.max(
+                0,
+                Math.ceil((sessionEndMs - Date.now()) / 1000),
+            );
+
+            setRemainingSeconds(nextRemainingSeconds);
+        };
+
+        updateRemaining();
+        const intervalId = setInterval(updateRemaining, 1000);
+
+        return () => clearInterval(intervalId);
+    }, [activeSession, focusMinutes]);
 
     const filteredTags = useMemo(() => {
         const query = tagSearchQuery.trim().toLowerCase();
@@ -177,9 +224,13 @@ const GrowTreeScreen = () => {
     }, []);
 
     const openSeedPicker = useCallback(() => {
+        if (!canEditSession) {
+            return;
+        }
+
         setIsSeedPickerVisible(true);
         loadSeedPackages();
-    }, [loadSeedPackages]);
+    }, [canEditSession, loadSeedPackages]);
 
     const closeSeedPicker = useCallback(() => {
         setIsSeedPickerVisible(false);
@@ -191,6 +242,10 @@ const GrowTreeScreen = () => {
     }, [navigation]);
 
     const openTagPicker = useCallback(() => {
+        if (!canEditSession) {
+            return;
+        }
+
         setDraftSelectedTag(selectedTag);
         setTagSearchQuery('');
         setIsTagPickerVisible(true);
@@ -198,7 +253,7 @@ const GrowTreeScreen = () => {
         if (!tagsLoaded) {
             loadTags();
         }
-    }, [loadTags, selectedTag, tagsLoaded]);
+    }, [canEditSession, loadTags, selectedTag, tagsLoaded]);
 
     const closeTagPicker = useCallback(() => {
         setIsTagPickerVisible(false);
@@ -254,6 +309,91 @@ const GrowTreeScreen = () => {
         setTagSearchQuery('');
     }, [draftSelectedTag]);
 
+    const decrementSelectedSeedPackage = useCallback((treePoolId: number) => {
+        setSeedPackages(currentPackages => currentPackages
+            .map(seedPackage => (
+                seedPackage.treePoolId === treePoolId
+                    ? { ...seedPackage, quantity: Math.max(0, seedPackage.quantity - 1) }
+                    : seedPackage
+            ))
+            .filter(seedPackage => seedPackage.quantity > 0));
+
+        setSelectedSeedPackage(currentPackage => {
+            if (!currentPackage || currentPackage.treePoolId !== treePoolId) {
+                return currentPackage;
+            }
+
+            const nextQuantity = Math.max(0, currentPackage.quantity - 1);
+            return nextQuantity > 0
+                ? { ...currentPackage, quantity: nextQuantity }
+                : null;
+        });
+    }, []);
+
+    const handleStartFocus = useCallback(async () => {
+        if (!selectedSeedPackage) {
+            Alert.alert('Select a seed', 'Choose a seed package before starting focus.');
+            openSeedPicker();
+            return;
+        }
+
+        setIsStartingSession(true);
+        setRewardResult(null);
+
+        try {
+            const session = await startPlantingSession({
+                treePoolId: selectedSeedPackage.treePoolId,
+                tagId: selectedTag?.id ?? null,
+                plannedDurationMinutes: focusMinutes,
+                clientStartTime: new Date().toISOString(),
+            });
+
+            setActiveSession(session);
+            setRemainingSeconds(getFocusDurationSeconds(session.plannedDurationMinutes));
+            decrementSelectedSeedPackage(session.treePoolId);
+        } catch (error: any) {
+            Alert.alert('Cannot start focus', getErrorMessage(error, 'Please try again.'));
+        } finally {
+            setIsStartingSession(false);
+        }
+    }, [decrementSelectedSeedPackage, focusMinutes, openSeedPicker, selectedSeedPackage, selectedTag]);
+
+    const handleCompleteFocus = useCallback(async () => {
+        if (!activeSession) {
+            return;
+        }
+
+        if (remainingSeconds > 0) {
+            Alert.alert('Still growing', 'The session is not ready to claim yet.');
+            return;
+        }
+
+        setIsCompletingSession(true);
+
+        try {
+            const result = await completePlantingSession(activeSession.id, {
+                clientEndTime: new Date().toISOString(),
+            });
+
+            setRewardResult(result);
+            setActiveSession(null);
+            setRemainingSeconds(getFocusDurationSeconds(focusMinutes));
+        } catch (error: any) {
+            Alert.alert('Cannot claim reward', getErrorMessage(error, 'Please try again.'));
+        } finally {
+            setIsCompletingSession(false);
+        }
+    }, [activeSession, focusMinutes, remainingSeconds]);
+
+    const handlePrimaryAction = useCallback(() => {
+        if (activeSession) {
+            handleCompleteFocus();
+            return;
+        }
+
+        handleStartFocus();
+    }, [activeSession, handleCompleteFocus, handleStartFocus]);
+
     const measureProgressControl = useCallback(() => {
         requestAnimationFrame(() => {
             progressControlRef.current?.measureInWindow((x, y) => {
@@ -274,8 +414,8 @@ const GrowTreeScreen = () => {
     }, []);
 
     const shouldHandleProgressGesture = useCallback((event: GestureResponderEvent) => {
-        return !isTouchInsidePlot(event);
-    }, [isTouchInsidePlot]);
+        return canEditSession && !isTouchInsidePlot(event);
+    }, [canEditSession, isTouchInsidePlot]);
 
     const updateFocusMinutes = useCallback((event: GestureResponderEvent) => {
         const { pageX, pageY } = event.nativeEvent;
@@ -364,6 +504,7 @@ const GrowTreeScreen = () => {
                             accessibilityLabel="Select a seed"
                             style={styles.plotTouchTarget}
                             onPress={openSeedPicker}
+                            disabled={!canEditSession}
                         />
 
                         <View style={[
@@ -381,19 +522,25 @@ const GrowTreeScreen = () => {
                         style={[
                         styles.focusPill,
                         isShortScreen && styles.focusPillCompact,
+                        !canEditSession && styles.controlDisabled,
                         ]}
                         onPress={openTagPicker}
                         activeOpacity={0.78}
+                        disabled={!canEditSession}
                     >
                         <View style={[styles.focusDot, { backgroundColor: displayedTagColor }]} />
                         <Text numberOfLines={1} style={styles.focusText}>{displayedTagName}</Text>
                     </TouchableOpacity>
 
+                    <Text numberOfLines={1} style={styles.seedHintText}>
+                        {selectedSeedPackage ? selectedSeedPackage.treePoolName : 'Tap the soil to choose a seed'}
+                    </Text>
+
                     <Text style={[
                         styles.timerText,
                         isShortScreen && styles.timerTextCompact,
                     ]}>
-                        {formatFocusTime(focusMinutes)}
+                        {formatFocusTime(displaySeconds)}
                     </Text>
 
                     <View style={[
@@ -402,12 +549,30 @@ const GrowTreeScreen = () => {
                     ]} />
 
                     <TouchableOpacity
-                        style={styles.startButton}
+                        style={[
+                            styles.startButton,
+                            (isStartingSession || isCompletingSession || (activeSession && !isReadyToClaim)) && styles.startButtonDisabled,
+                        ]}
                         activeOpacity={0.82}
-                        onPress={() => undefined}
+                        onPress={handlePrimaryAction}
+                        disabled={isStartingSession || isCompletingSession || (!!activeSession && !isReadyToClaim)}
                     >
-                        <Icon name="play" size={scale.ms(15)} color="#FFFFFF" />
-                        <Text style={styles.startButtonText}>Start Focus</Text>
+                        {isStartingSession || isCompletingSession ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Icon
+                                    name={activeSession ? 'gift' : 'play'}
+                                    size={scale.ms(15)}
+                                    color="#FFFFFF"
+                                />
+                                <Text style={styles.startButtonText}>
+                                    {activeSession
+                                        ? (isReadyToClaim ? 'Claim Reward' : 'Growing...')
+                                        : 'Start Focus'}
+                                </Text>
+                            </>
+                        )}
                     </TouchableOpacity>
                 </View>
             </View>
@@ -698,6 +863,67 @@ const GrowTreeScreen = () => {
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            <Modal
+                visible={!!rewardResult}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setRewardResult(null)}
+            >
+                <Pressable style={styles.rewardBackdrop} onPress={() => setRewardResult(null)}>
+                    <Pressable style={styles.rewardSurface} onPress={() => undefined}>
+                        {rewardResult && (
+                            <>
+                                <Image
+                                    source={resolveTreeImage(rewardResult.resultTree)}
+                                    style={styles.rewardTreeImage}
+                                    resizeMode="contain"
+                                />
+
+                                <View
+                                    style={[
+                                        styles.rewardRarityPill,
+                                        { backgroundColor: getRarityColor(rewardResult.resultTree.rarity) },
+                                    ]}
+                                >
+                                    <Text style={styles.rewardRarityText}>
+                                        {getRarityLabel(rewardResult.resultTree.rarity)}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.rewardTitle}>{rewardResult.resultTree.name}</Text>
+                                <Text style={styles.rewardDescription}>
+                                    {rewardResult.isDuplicate
+                                        ? `Duplicate converted into ${rewardResult.bonusGemReward > 0
+                                            ? `${rewardResult.bonusGemReward} gem`
+                                            : `${rewardResult.bonusCoinReward} coin`}.`
+                                        : 'A new tree has been added to your Treepedia.'}
+                                </Text>
+
+                                <View style={styles.rewardStats}>
+                                    <Text style={styles.rewardStatText}>
+                                        Owned x{rewardResult.totalObtainedCount}
+                                    </Text>
+                                    <Text style={styles.rewardStatText}>
+                                        Coin {rewardResult.wallet.coin}
+                                    </Text>
+                                    <Text style={styles.rewardStatText}>
+                                        Gem {rewardResult.wallet.gem}
+                                    </Text>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.rewardButton}
+                                    activeOpacity={0.82}
+                                    onPress={() => setRewardResult(null)}
+                                >
+                                    <Text style={styles.rewardButtonText}>Done</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </AppLayout>
     );
 };
@@ -808,6 +1034,18 @@ const styles = StyleSheet.create({
         lineHeight: scale.ms(20),
         maxWidth: scale.s(160),
     },
+    controlDisabled: {
+        opacity: 0.62,
+    },
+    seedHintText: {
+        width: '100%',
+        marginTop: scale.vs(12),
+        color: '#424940',
+        fontSize: scale.ms(13),
+        fontWeight: '700',
+        lineHeight: scale.ms(18),
+        textAlign: 'center',
+    },
     timerText: {
         marginTop: scale.vs(28),
         color: '#3B653F',
@@ -841,6 +1079,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.18,
         shadowRadius: 6,
         elevation: 6,
+    },
+    startButtonDisabled: {
+        opacity: 0.62,
     },
     startButtonText: {
         marginLeft: scale.s(8),
@@ -1245,6 +1486,89 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         lineHeight: scale.ms(24),
         textAlign: 'center',
+    },
+    rewardBackdrop: {
+        flex: 1,
+        paddingHorizontal: scale.s(22),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(17, 24, 20, 0.42)',
+    },
+    rewardSurface: {
+        width: '100%',
+        borderRadius: scale.s(24),
+        borderWidth: 1,
+        borderColor: '#DCE5DB',
+        paddingHorizontal: scale.s(22),
+        paddingTop: scale.vs(26),
+        paddingBottom: scale.vs(22),
+        alignItems: 'center',
+        backgroundColor: '#F3FCF2',
+    },
+    rewardTreeImage: {
+        width: scale.s(180),
+        height: scale.vs(180),
+    },
+    rewardRarityPill: {
+        minHeight: scale.vs(28),
+        borderRadius: scale.s(999),
+        marginTop: scale.vs(8),
+        paddingHorizontal: scale.s(14),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rewardRarityText: {
+        color: '#FFFFFF',
+        fontSize: scale.ms(12),
+        fontWeight: '800',
+        lineHeight: scale.ms(16),
+    },
+    rewardTitle: {
+        marginTop: scale.vs(14),
+        color: '#161D18',
+        fontSize: scale.ms(22),
+        fontWeight: '800',
+        lineHeight: scale.ms(30),
+        textAlign: 'center',
+    },
+    rewardDescription: {
+        marginTop: scale.vs(8),
+        color: '#424940',
+        fontSize: scale.ms(14),
+        fontWeight: '600',
+        lineHeight: scale.ms(20),
+        textAlign: 'center',
+    },
+    rewardStats: {
+        width: '100%',
+        borderRadius: scale.s(14),
+        marginTop: scale.vs(18),
+        paddingVertical: scale.vs(12),
+        paddingHorizontal: scale.s(14),
+        gap: scale.vs(6),
+        backgroundColor: '#E8F0E6',
+    },
+    rewardStatText: {
+        color: '#161D18',
+        fontSize: scale.ms(13),
+        fontWeight: '700',
+        lineHeight: scale.ms(18),
+        textAlign: 'center',
+    },
+    rewardButton: {
+        width: '100%',
+        minHeight: scale.vs(52),
+        borderRadius: scale.s(14),
+        marginTop: scale.vs(18),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: PROGRESS_COLOR,
+    },
+    rewardButtonText: {
+        color: '#FFFFFF',
+        fontSize: scale.ms(16),
+        fontWeight: '800',
+        lineHeight: scale.ms(22),
     },
 });
 

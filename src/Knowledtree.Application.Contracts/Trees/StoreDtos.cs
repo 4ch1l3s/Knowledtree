@@ -26,6 +26,20 @@ public class SeedPackageDto
 }
 
 [Serializable]
+public class OwnedTreeDto
+{
+    public Guid Id { get; set; }
+
+    public TreeDto Tree { get; set; } = null!;
+
+    public int TotalObtainedCount { get; set; }
+
+    public bool IsPlanted { get; set; }
+
+    public DateTime FirstObtainedAt { get; set; }
+}
+
+[Serializable]
 public class BuySeedPackageResultDto
 {
     public WalletDto Wallet { get; set; } = null!;
