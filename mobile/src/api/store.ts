@@ -51,6 +51,13 @@ export interface OwnedTreeDto {
     firstObtainedAt: string;
 }
 
+export interface TreepediaEntryDto {
+    tree: TreeDto;
+    isUnlocked: boolean;
+    ownedTreeId?: string | null;
+    totalObtainedCount: number;
+}
+
 export interface BuySeedPackageResultDto {
     wallet: WalletDto;
     seedPackage: SeedPackageDto;
@@ -87,6 +94,11 @@ export const getMySeedPackages = async (): Promise<SeedPackageDto[]> => {
 
 export const getMyTrees = async (): Promise<OwnedTreeDto[]> => {
     const response = await client.get<OwnedTreeDto[]>('/api/store/my-trees');
+    return response.data;
+};
+
+export const getTreepedia = async (): Promise<TreepediaEntryDto[]> => {
+    const response = await client.get<TreepediaEntryDto[]>('/api/store/treepedia');
     return response.data;
 };
 

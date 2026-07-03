@@ -40,6 +40,18 @@ public class OwnedTreeDto
 }
 
 [Serializable]
+public class TreepediaEntryDto
+{
+    public TreeDto Tree { get; set; } = null!;
+
+    public bool IsUnlocked { get; set; }
+
+    public Guid? OwnedTreeId { get; set; }
+
+    public int TotalObtainedCount { get; set; }
+}
+
+[Serializable]
 public class BuySeedPackageResultDto
 {
     public WalletDto Wallet { get; set; } = null!;

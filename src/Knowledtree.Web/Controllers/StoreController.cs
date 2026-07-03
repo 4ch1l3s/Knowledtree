@@ -42,6 +42,12 @@ public class StoreController : AbpControllerBase
         return Ok(await _storeAppService.GetMyTreesAsync());
     }
 
+    [HttpGet("treepedia")]
+    public virtual async Task<IActionResult> GetTreepedia()
+    {
+        return Ok(await _storeAppService.GetTreepediaAsync());
+    }
+
     [HttpPost("tree-pools/{treePoolId}/buy")]
     public virtual async Task<IActionResult> BuySeedPackage(int treePoolId)
     {
