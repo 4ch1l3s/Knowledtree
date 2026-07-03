@@ -14,6 +14,8 @@ public interface IStoreAppService : IApplicationService
 
     Task<List<OwnedTreeDto>> GetMyTreesAsync();
 
+    Task<List<TreepediaEntryDto>> GetTreepediaAsync();
+
     Task<BuySeedPackageResultDto> BuySeedPackageAsync(int treePoolId);
 
     Task<BuySeedPackagesResultDto> BuySeedPackagesAsync(BuySeedPackagesDto input);

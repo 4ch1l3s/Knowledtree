@@ -114,6 +114,26 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
             .ToList();
     }
 
+    public virtual async Task<List<TreepediaEntryDto>> GetTreepediaAsync()
+    {
+        var userId = CurrentUser.GetId();
+        var trees = await AsyncExecuter.ToListAsync(
+            (await _treeRepository.GetQueryableAsync())
+            .OrderBy(x => x.Rarity)
+            .ThenBy(x => x.Name));
+        var userTrees = await AsyncExecuter.ToListAsync(
+            (await _userTreeRepository.GetQueryableAsync()).Where(x => x.UserId == userId));
+        var userTreesByTreeId = userTrees.ToDictionary(x => x.TreeId);
+
+        return trees
+            .Select(tree =>
+            {
+                userTreesByTreeId.TryGetValue(tree.Id, out var userTree);
+                return MapTreepediaEntry(tree, userTree);
+            })
+            .ToList();
+    }
+
     public virtual async Task<BuySeedPackageResultDto> BuySeedPackageAsync(int treePoolId)
     {
         var result = await BuySeedPackagesAsync(new BuySeedPackagesDto
@@ -357,6 +377,17 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
             TotalObtainedCount = userTree.TotalObtainedCount,
             IsPlanted = userTree.IsPlanted,
             FirstObtainedAt = userTree.FirstObtainedAt
+        };
+    }
+
+    protected virtual TreepediaEntryDto MapTreepediaEntry(Tree tree, UserTree? userTree)
+    {
+        return new TreepediaEntryDto
+        {
+            Tree = ObjectMapper.Map<Tree, TreeDto>(tree),
+            IsUnlocked = userTree != null,
+            OwnedTreeId = userTree?.Id,
+            TotalObtainedCount = userTree?.TotalObtainedCount ?? 0
         };
     }
 
