@@ -11,7 +11,7 @@ public class StartPlantingSessionDto
 
     public int? TagId { get; set; }
 
-    [Range(1, int.MaxValue)]
+    [Range(30, 180)]
     public int PlannedDurationMinutes { get; set; }
 
     public DateTime? ClientStartTime { get; set; }
@@ -35,6 +35,8 @@ public class PlantingSessionDto
     public int? TagId { get; set; }
 
     public int PlannedDurationMinutes { get; set; }
+
+    public int RequiredFocusDurationSeconds { get; set; }
 
     public DateTime ClientStartTime { get; set; }
 

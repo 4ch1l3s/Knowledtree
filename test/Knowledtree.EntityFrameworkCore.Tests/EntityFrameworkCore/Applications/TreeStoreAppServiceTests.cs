@@ -5,6 +5,7 @@ using Knowledtree.Trees;
 using Knowledtree.UserWallets;
 using Shouldly;
 using Volo.Abp;
+using Volo.Abp.Validation;
 using Volo.Abp.Domain.Repositories;
 using Xunit;
 
@@ -176,8 +177,29 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
         });
 
         session.Status.ShouldBe(PlantingSessionStatus.Growing);
+        session.PlannedDurationMinutes.ShouldBe(30);
+        session.RequiredFocusDurationSeconds.ShouldBe(10);
         var package = await GetSeedPackageAsync(pool.Id);
         package.Quantity.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(29)]
+    [InlineData(181)]
+    public async Task Start_Should_Reject_Duration_Outside_Thirty_To_OneHundredEighty_Minutes(
+        int plannedDurationMinutes)
+    {
+        var exception = await Should.ThrowAsync<AbpValidationException>(() =>
+            _plantingSessionAppService.StartAsync(new StartPlantingSessionDto
+            {
+                TreePoolId = 1,
+                PlannedDurationMinutes = plannedDurationMinutes
+            }));
+
+        exception.ValidationErrors
+            .Any(error => error.MemberNames.Contains(nameof(StartPlantingSessionDto.PlannedDurationMinutes)))
+            .ShouldBeTrue();
     }
 
     [Fact]
@@ -216,6 +238,7 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
         result.ResultTree.Id.ShouldBe(tree.Id);
         result.TotalObtainedCount.ShouldBe(1);
         result.Session.Status.ShouldBe(PlantingSessionStatus.Claimed);
+        result.Session.RequiredFocusDurationSeconds.ShouldBe(10);
     }
 
     [Fact]
@@ -341,7 +364,7 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
                 CurrentUserId,
                 treePoolId,
                 tagId: null,
-                plannedDurationMinutes: 1,
+                plannedDurationMinutes: 30,
                 clientStartTime: startTime,
                 serverStartTime: startTime);
 

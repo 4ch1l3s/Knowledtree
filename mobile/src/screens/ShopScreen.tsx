@@ -33,6 +33,9 @@ const BORDER = '#DCE5DB';
 const TEXT = '#161D18';
 const MUTED = '#424940';
 const BUY_DEBOUNCE_MS = 1000;
+const MINUTE_MS = 60000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 const assetCoin = require('../assets/asset_coin.png');
 const assetGem = require('../assets/asset_gem.png');
@@ -154,24 +157,35 @@ const isLimitedPool = (pool: TreePoolDto) =>
     || pool.poolType === 3
     || Boolean(pool.endTime);
 
-const getLimitedLabel = (pool: TreePoolDto) => {
-    if (!pool.startTime || !pool.endTime) {
+const formatRemainingUnit = (value: number, unit: string) => (
+    `${value} ${unit}${value === 1 ? '' : 's'} left`
+);
+
+const getLimitedLabel = (pool: TreePoolDto, nowMs: number) => {
+    if (!pool.endTime) {
         return null;
     }
 
-    const start = new Date(pool.startTime);
     const end = new Date(pool.endTime);
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    if (Number.isNaN(end.getTime())) {
         return null;
     }
 
-    const diffDays = Math.ceil((end.getTime() - start.getTime()) / 86400000);
-    if (diffDays <= 0) {
+    const remainingMs = end.getTime() - nowMs;
+    if (remainingMs <= 0) {
         return null;
     }
 
-    return `${diffDays} days`;
+    if (remainingMs < HOUR_MS) {
+        return formatRemainingUnit(Math.ceil(remainingMs / MINUTE_MS), 'min');
+    }
+
+    if (remainingMs < DAY_MS) {
+        return formatRemainingUnit(Math.ceil(remainingMs / HOUR_MS), 'hour');
+    }
+
+    return formatRemainingUnit(Math.ceil(remainingMs / DAY_MS), 'day');
 };
 
 interface WalletChipProps {
@@ -190,14 +204,15 @@ interface SeedRowProps {
     pool: TreePoolDto;
     wallet: WalletDto | null;
     queuedQuantity: number;
+    nowMs: number;
     onBuy: (pool: TreePoolDto) => void;
 }
 
-const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, queuedQuantity, onBuy }) => {
+const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, queuedQuantity, nowMs, onBuy }) => {
     const currencyAsset = getCurrencyAsset(pool.currencyType);
     const affordable = canBuyPool(pool, wallet);
     const disabled = !affordable;
-    const limitedLabel = getLimitedLabel(pool);
+    const limitedLabel = getLimitedLabel(pool, nowMs);
     const displayedOwnedQuantity = pool.ownedSeedQuantity + queuedQuantity;
 
     return (
@@ -247,6 +262,7 @@ interface SeedSectionProps {
     pools: TreePoolDto[];
     wallet: WalletDto | null;
     queuedPurchases: PurchaseMap;
+    nowMs: number;
     onBuy: (pool: TreePoolDto) => void;
 }
 
@@ -256,6 +272,7 @@ const SeedSection: React.FC<SeedSectionProps> = ({
     pools,
     wallet,
     queuedPurchases,
+    nowMs,
     onBuy,
 }) => {
     if (pools.length === 0) {
@@ -276,6 +293,7 @@ const SeedSection: React.FC<SeedSectionProps> = ({
                         pool={pool}
                         wallet={wallet}
                         queuedQuantity={getPurchaseQuantity(queuedPurchases, pool.id)}
+                        nowMs={nowMs}
                         onBuy={onBuy}
                     />
                 ))}
@@ -292,6 +310,7 @@ const ShopScreen = () => {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [queuedPurchases, setQueuedPurchases] = useState<PurchaseMap>({});
     const [inFlightPurchases, setInFlightPurchases] = useState<PurchaseMap>({});
+    const [nowMs, setNowMs] = useState(Date.now());
 
     const queuedPurchasesRef = useRef<PurchaseMap>({});
     const inFlightPurchasesRef = useRef<PurchaseMap>({});
@@ -355,6 +374,11 @@ const ShopScreen = () => {
     useEffect(() => {
         loadShop(true);
     }, [loadShop]);
+
+    useEffect(() => {
+        const timer = setInterval(() => setNowMs(Date.now()), MINUTE_MS);
+        return () => clearInterval(timer);
+    }, []);
 
     const clearFlushTimer = useCallback(() => {
         if (flushTimerRef.current) {
@@ -499,6 +523,7 @@ const ShopScreen = () => {
                             pools={permanentPools}
                             wallet={effectiveWallet}
                             queuedPurchases={reservedPurchases}
+                            nowMs={nowMs}
                             onBuy={handleBuy}
                         />
                         <SeedSection
@@ -507,6 +532,7 @@ const ShopScreen = () => {
                             pools={limitedPools}
                             wallet={effectiveWallet}
                             queuedPurchases={reservedPurchases}
+                            nowMs={nowMs}
                             onBuy={handleBuy}
                         />
                     </View>

@@ -10,6 +10,10 @@ public class KnowledtreePermissionDefinitionProvider : PermissionDefinitionProvi
     {
         var myGroup = context.AddGroup(KnowledtreePermissions.GroupName);
 
+        myGroup.AddPermission(
+            KnowledtreePermissions.Tester,
+            L("Permission:Tester"));
+
         var userAvatarPermission = myGroup.AddPermission(
             KnowledtreePermissions.UserAvatars.Default,
             L("Permission:UserAvatars"));

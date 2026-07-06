@@ -3,6 +3,7 @@
 public static class KnowledtreePermissions
 {
     public const string GroupName = "Knowledtree";
+    public const string Tester = GroupName + ".Tester";
 
     public static class UserAvatars
     {
