@@ -5,8 +5,11 @@ import {
     Easing,
     Image,
     LayoutChangeEvent,
+    Modal,
     PanResponder,
     PixelRatio,
+    Pressable,
+    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -319,6 +322,7 @@ const TreepediaScreen = () => {
     const [error, setError] = useState<string | null>(null);
     const [bookSize, setBookSize] = useState<BookSize>({ width: 0, height: 0 });
     const [currentPageIndex, setCurrentPageIndex] = useState(0);
+    const [selectedEntry, setSelectedEntry] = useState<TreepediaEntryDto | null>(null);
 
     const progress = useRef(new Animated.Value(0)).current;
     const progressValueRef = useRef(0);
@@ -494,8 +498,67 @@ const TreepediaScreen = () => {
         </View>
     );
 
-    const handleFramePress = useCallback((_item: TreepediaEntryDto) => {
+    const handleFramePress = useCallback((item: TreepediaEntryDto) => {
+        setSelectedEntry(item);
     }, []);
+
+    const closeDetail = useCallback(() => {
+        setSelectedEntry(null);
+    }, []);
+
+    const renderTreeDetail = () => {
+        const description = selectedEntry?.tree.description?.trim();
+
+        return (
+            <Modal
+                animationType="fade"
+                transparent
+                visible={!!selectedEntry}
+                onRequestClose={closeDetail}
+            >
+                <Pressable style={styles.detailBackdrop} onPress={closeDetail}>
+                    <Pressable style={styles.detailSurface} onPress={() => undefined}>
+                        {selectedEntry ? (
+                            <ScrollView
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={styles.detailContent}
+                            >
+                                <TouchableOpacity
+                                    accessibilityRole="button"
+                                    activeOpacity={0.82}
+                                    style={styles.detailCloseButton}
+                                    onPress={closeDetail}
+                                >
+                                    <Icon name="x" size={scale.ms(18)} color="#4F4635" />
+                                </TouchableOpacity>
+
+                                {selectedEntry.isUnlocked ? (
+                                    <View style={styles.detailImageWrap}>
+                                        <View
+                                            style={[
+                                                styles.detailRarityWash,
+                                                { backgroundColor: getRarityColor(selectedEntry.tree.rarity) },
+                                            ]}
+                                        />
+                                        <Image
+                                            source={resolveTreeImage(selectedEntry.tree)}
+                                            style={styles.detailTreeImage}
+                                            resizeMode="contain"
+                                        />
+                                    </View>
+                                ) : null}
+
+                                <Text style={styles.detailTitle}>{selectedEntry.tree.name}</Text>
+                                <Text style={styles.detailDescription}>
+                                    {description || 'No description yet.'}
+                                </Text>
+                            </ScrollView>
+                        ) : null}
+                    </Pressable>
+                </Pressable>
+            </Modal>
+        );
+    };
 
     const renderBook = () => (
         <View style={styles.bookShell}>
@@ -561,6 +624,8 @@ const TreepediaScreen = () => {
                 ) : (
                     renderBook()
                 )}
+
+                {renderTreeDetail()}
             </View>
         </AppLayout>
     );
@@ -755,6 +820,77 @@ const styles = StyleSheet.create({
         fontSize: scale.ms(13),
         fontWeight: '800',
         lineHeight: scale.ms(18),
+    },
+    detailBackdrop: {
+        flex: 1,
+        paddingHorizontal: scale.s(20),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(25, 23, 21, 0.52)',
+    },
+    detailSurface: {
+        width: '100%',
+        maxHeight: '82%',
+        borderRadius: scale.s(18),
+        borderWidth: 1,
+        borderColor: '#C4B899',
+        overflow: 'hidden',
+        backgroundColor: PAGE_FRONT_COLOR,
+    },
+    detailContent: {
+        paddingHorizontal: scale.s(22),
+        paddingTop: scale.vs(22),
+        paddingBottom: scale.vs(24),
+        alignItems: 'center',
+    },
+    detailCloseButton: {
+        position: 'absolute',
+        top: scale.vs(12),
+        right: scale.s(12),
+        width: scale.s(34),
+        height: scale.s(34),
+        borderRadius: scale.s(17),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.42)',
+        zIndex: 2,
+    },
+    detailImageWrap: {
+        width: scale.s(188),
+        height: scale.vs(188),
+        borderRadius: scale.s(14),
+        borderWidth: 1,
+        borderColor: 'rgba(79, 70, 53, 0.16)',
+        marginTop: scale.vs(10),
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: PHOTO_SURFACE_COLOR,
+    },
+    detailRarityWash: {
+        ...StyleSheet.absoluteFillObject,
+        opacity: 0.1,
+    },
+    detailTreeImage: {
+        width: '86%',
+        height: '86%',
+    },
+    detailTitle: {
+        marginTop: scale.vs(18),
+        color: '#2F281D',
+        fontSize: scale.ms(22),
+        fontWeight: '800',
+        lineHeight: scale.ms(30),
+        textAlign: 'center',
+    },
+    detailDescription: {
+        width: '100%',
+        marginTop: scale.vs(10),
+        color: '#4F4635',
+        fontSize: scale.ms(14),
+        fontWeight: '600',
+        lineHeight: scale.ms(21),
+        textAlign: 'center',
     },
 });
 

@@ -20,6 +20,7 @@ export interface PlantingSessionDto {
     resultTreeId?: number | null;
     tagId?: number | null;
     plannedDurationMinutes: number;
+    requiredFocusDurationSeconds: number;
     clientStartTime: string;
     serverStartTime: string;
     clientEndTime?: string | null;

@@ -8,6 +8,7 @@
     "Menu:TreePools": "Treepools",
     "Welcome": "Welcome",
     "LongWelcomeMessage": "Welcome to the application. This is a startup project based on the ABP framework. For more information, visit abp.io.",
+    "Permission:Tester": "Tester",
     "Permission:UserAvatars": "User Avatar Management",
     "Permission:UserAvatars.Delete": "Delete",
     "Permission:TreeManagement": "Tree Management",

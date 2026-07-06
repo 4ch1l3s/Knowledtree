@@ -47,7 +47,6 @@ const STEP_MINUTES = 5;
 const MIN_MINUTES = 30;
 const MAX_MINUTES = 180;
 const INITIAL_MINUTES = MIN_MINUTES;
-const DEVELOPMENT_FOCUS_SECONDS = 10;
 const VALUE_STEP_COUNT = (MAX_MINUTES - MIN_MINUTES) / STEP_MINUTES;
 const RING_SIZE = scale.s(240);
 const RING_RADIUS = RING_SIZE / 2;
@@ -81,8 +80,8 @@ const formatFocusTime = (totalSeconds: number) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const getFocusDurationSeconds = (plannedDurationMinutes: number) => (
-    __DEV__ ? DEVELOPMENT_FOCUS_SECONDS : plannedDurationMinutes * 60
+const getPlannedFocusDurationSeconds = (plannedDurationMinutes: number) => (
+    plannedDurationMinutes * 60
 );
 
 const getErrorMessage = (error: any, fallback: string) =>
@@ -124,13 +123,13 @@ const GrowTreeScreen = () => {
     const [formColor, setFormColor] = useState(TAG_COLORS[0]);
     const [creatingTag, setCreatingTag] = useState(false);
     const [activeSession, setActiveSession] = useState<PlantingSessionDto | null>(null);
-    const [remainingSeconds, setRemainingSeconds] = useState(getFocusDurationSeconds(INITIAL_MINUTES));
+    const [remainingSeconds, setRemainingSeconds] = useState(getPlannedFocusDurationSeconds(INITIAL_MINUTES));
     const [isStartingSession, setIsStartingSession] = useState(false);
     const [isCompletingSession, setIsCompletingSession] = useState(false);
     const [rewardResult, setRewardResult] = useState<CompletePlantingSessionResultDto | null>(null);
 
     const canEditSession = !activeSession && !isStartingSession && !isCompletingSession;
-    const displaySeconds = activeSession ? remainingSeconds : getFocusDurationSeconds(focusMinutes);
+    const displaySeconds = activeSession ? remainingSeconds : getPlannedFocusDurationSeconds(focusMinutes);
     const isReadyToClaim = !!activeSession && remainingSeconds <= 0;
     const progress = (focusMinutes - MIN_MINUTES) / (MAX_MINUTES - MIN_MINUTES);
     const strokeDashoffset = RING_CIRCUMFERENCE * (1 - progress);
@@ -143,13 +142,13 @@ const GrowTreeScreen = () => {
 
     useEffect(() => {
         if (!activeSession) {
-            setRemainingSeconds(getFocusDurationSeconds(focusMinutes));
+            setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
             return undefined;
         }
 
         const updateRemaining = () => {
             const serverStartMs = new Date(activeSession.serverStartTime).getTime();
-            const sessionEndMs = serverStartMs + getFocusDurationSeconds(activeSession.plannedDurationMinutes) * 1000;
+            const sessionEndMs = serverStartMs + activeSession.requiredFocusDurationSeconds * 1000;
             const nextRemainingSeconds = Math.max(
                 0,
                 Math.ceil((sessionEndMs - Date.now()) / 1000),
@@ -233,6 +232,11 @@ const GrowTreeScreen = () => {
     }, [canEditSession, loadSeedPackages]);
 
     const closeSeedPicker = useCallback(() => {
+        setIsSeedPickerVisible(false);
+    }, []);
+
+    const handleSelectSeedPackage = useCallback((seedPackage: SeedPackageDto) => {
+        setSelectedSeedPackage(seedPackage);
         setIsSeedPickerVisible(false);
     }, []);
 
@@ -349,7 +353,7 @@ const GrowTreeScreen = () => {
             });
 
             setActiveSession(session);
-            setRemainingSeconds(getFocusDurationSeconds(session.plannedDurationMinutes));
+            setRemainingSeconds(session.requiredFocusDurationSeconds);
             decrementSelectedSeedPackage(session.treePoolId);
         } catch (error: any) {
             Alert.alert('Cannot start focus', getErrorMessage(error, 'Please try again.'));
@@ -377,7 +381,7 @@ const GrowTreeScreen = () => {
 
             setRewardResult(result);
             setActiveSession(null);
-            setRemainingSeconds(getFocusDurationSeconds(focusMinutes));
+            setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
         } catch (error: any) {
             Alert.alert('Cannot claim reward', getErrorMessage(error, 'Please try again.'));
         } finally {
@@ -805,7 +809,7 @@ const GrowTreeScreen = () => {
                                                     isActive && styles.seedPackageCardActive,
                                                 ]}
                                                 activeOpacity={0.78}
-                                                onPress={() => setSelectedSeedPackage(seedPackage)}
+                                                onPress={() => handleSelectSeedPackage(seedPackage)}
                                             >
                                                 <Image
                                                     source={resolveSeedPackageImage(

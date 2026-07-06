@@ -8,6 +8,7 @@
     "Menu:TreePools": "Treepool",
     "Welcome": "Chào mừng bạn",
     "LongWelcomeMessage": "Chào mừng bạn đến ứng dụng. Đây là một dự án khởi nghiệp dựa trên khung ABP. Để biết thêm thông tin, hãy truy cập abp.io.",
+    "Permission:Tester": "Tester",
     "Permission:UserAvatars": "Quản lý ảnh đại diện",
     "Permission:UserAvatars.Delete": "Xóa",
     "Permission:TreeManagement": "Quản lý cây",

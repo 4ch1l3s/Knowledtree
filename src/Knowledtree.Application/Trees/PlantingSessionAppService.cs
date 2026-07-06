@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Knowledtree.Permissions;
 using Knowledtree.Tags;
 using Knowledtree.UserWallets;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp;
+using Volo.Abp.Authorization.Permissions;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Users;
@@ -18,7 +20,9 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
     private const int CommonDuplicateCoinReward = 200;
     private const int RareDuplicateGemReward = 1;
     private const int GoldDuplicateGemReward = 5;
-    private const int DevelopmentFocusDurationSeconds = 10;
+    private const int TesterFocusDurationSeconds = 10;
+    private const int MinPlannedDurationMinutes = 30;
+    private const int MaxPlannedDurationMinutes = 180;
 
     private readonly IRepository<PlantingSession, Guid> _plantingSessionRepository;
     private readonly IRepository<TreePool, int> _treePoolRepository;
@@ -28,6 +32,7 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
     private readonly IRepository<UserTree, Guid> _userTreeRepository;
     private readonly IRepository<UserWallet, Guid> _walletRepository;
     private readonly IRepository<Tag, int> _tagRepository;
+    private readonly IPermissionChecker _permissionChecker;
 
     public PlantingSessionAppService(
         IRepository<PlantingSession, Guid> plantingSessionRepository,
@@ -37,7 +42,8 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         IRepository<UserSeedPackage, Guid> seedPackageRepository,
         IRepository<UserTree, Guid> userTreeRepository,
         IRepository<UserWallet, Guid> walletRepository,
-        IRepository<Tag, int> tagRepository)
+        IRepository<Tag, int> tagRepository,
+        IPermissionChecker permissionChecker)
     {
         _plantingSessionRepository = plantingSessionRepository;
         _treePoolRepository = treePoolRepository;
@@ -47,11 +53,14 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         _userTreeRepository = userTreeRepository;
         _walletRepository = walletRepository;
         _tagRepository = tagRepository;
+        _permissionChecker = permissionChecker;
     }
 
     public virtual async Task<PlantingSessionDto> StartAsync(StartPlantingSessionDto input)
     {
-        if (input.PlannedDurationMinutes <= 0)
+        if (
+            input.PlannedDurationMinutes < MinPlannedDurationMinutes
+            || input.PlannedDurationMinutes > MaxPlannedDurationMinutes)
         {
             throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidPlantingDuration);
         }
@@ -108,7 +117,9 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
 
         await _plantingSessionRepository.InsertAsync(session, autoSave: true);
 
-        return MapSession(session);
+        return MapSession(
+            session,
+            await GetRequiredFocusDurationSecondsAsync(session));
     }
 
     public virtual async Task<CompletePlantingSessionResultDto> CompleteAsync(Guid id, CompletePlantingSessionDto input)
@@ -122,7 +133,8 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         }
 
         var serverEndTime = Clock.Now;
-        if ((serverEndTime - session.ServerStartTime).TotalSeconds < GetRequiredFocusDurationSeconds(session))
+        var requiredFocusDurationSeconds = await GetRequiredFocusDurationSecondsAsync(session);
+        if ((serverEndTime - session.ServerStartTime).TotalSeconds < requiredFocusDurationSeconds)
         {
             throw new BusinessException(KnowledtreeDomainErrorCodes.PlantingSessionNotReady);
         }
@@ -169,7 +181,7 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
 
         return new CompletePlantingSessionResultDto
         {
-            Session = MapSession(session),
+            Session = MapSession(session, requiredFocusDurationSeconds),
             ResultTree = ObjectMapper.Map<Tree, TreeDto>(resultTree),
             IsDuplicate = isDuplicate,
             BonusCoinReward = duplicateCoinReward,
@@ -265,23 +277,16 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         return rarity == TreeRarity.Common ? CommonDuplicateCoinReward : 0;
     }
 
-    protected virtual int GetRequiredFocusDurationSeconds(PlantingSession session)
+    protected virtual async Task<int> GetRequiredFocusDurationSecondsAsync(PlantingSession session)
     {
-        return IsDevelopmentEnvironment()
-            ? DevelopmentFocusDurationSeconds
+        return await CanUseTesterFocusDurationAsync()
+            ? TesterFocusDurationSeconds
             : session.PlannedDurationMinutes * 60;
     }
 
-    private static bool IsDevelopmentEnvironment()
+    protected virtual Task<bool> CanUseTesterFocusDurationAsync()
     {
-        return string.Equals(
-                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                "Development",
-                StringComparison.OrdinalIgnoreCase)
-            || string.Equals(
-                Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"),
-                "Development",
-                StringComparison.OrdinalIgnoreCase);
+        return _permissionChecker.IsGrantedAsync(KnowledtreePermissions.Tester);
     }
 
     protected virtual async Task<UserWallet> GetOrCreateWalletAsync(Guid userId)
@@ -327,9 +332,13 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
             (await _treeRepository.GetQueryableAsync()).Where(x => treeIds.Contains(x.Id)));
     }
 
-    protected virtual PlantingSessionDto MapSession(PlantingSession session)
+    protected virtual PlantingSessionDto MapSession(
+        PlantingSession session,
+        int requiredFocusDurationSeconds)
     {
-        return ObjectMapper.Map<PlantingSession, PlantingSessionDto>(session);
+        var dto = ObjectMapper.Map<PlantingSession, PlantingSessionDto>(session);
+        dto.RequiredFocusDurationSeconds = requiredFocusDurationSeconds;
+        return dto;
     }
 
     protected virtual WalletDto MapWallet(UserWallet wallet)
