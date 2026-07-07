@@ -8,6 +8,7 @@ using Knowledtree.UserWallets;
 using Microsoft.AspNetCore.Authorization;
 using Volo.Abp;
 using Volo.Abp.Authorization.Permissions;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.Domain.Entities;
 using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Users;
@@ -23,6 +24,9 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
     private const int TesterFocusDurationSeconds = 10;
     private const int MinPlannedDurationMinutes = 30;
     private const int MaxPlannedDurationMinutes = 180;
+    private const int CompletionToleranceSeconds = 5 * 60;
+    private const int DefaultHistoryPageSize = 30;
+    private const int MaxHistoryPageSize = 30;
 
     private readonly IRepository<PlantingSession, Guid> _plantingSessionRepository;
     private readonly IRepository<TreePool, int> _treePoolRepository;
@@ -134,7 +138,7 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
 
         var serverEndTime = Clock.Now;
         var requiredFocusDurationSeconds = await GetRequiredFocusDurationSecondsAsync(session);
-        if ((serverEndTime - session.ServerStartTime).TotalSeconds < requiredFocusDurationSeconds)
+        if (!IsReadyToComplete(session, serverEndTime, requiredFocusDurationSeconds))
         {
             throw new BusinessException(KnowledtreeDomainErrorCodes.PlantingSessionNotReady);
         }
@@ -191,6 +195,102 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         };
     }
 
+    public virtual async Task<PlantingSessionDto?> GetActiveAsync()
+    {
+        var userId = CurrentUser.GetId();
+        var session = await AsyncExecuter.FirstOrDefaultAsync(
+            (await _plantingSessionRepository.GetQueryableAsync())
+            .Where(x => x.UserId == userId && x.Status == PlantingSessionStatus.Growing)
+            .OrderByDescending(x => x.ServerStartTime));
+
+        return session == null
+            ? null
+            : MapSession(session, await GetRequiredFocusDurationSecondsAsync(session));
+    }
+
+    public virtual async Task<PagedResultDto<PlantingSessionHistoryItemDto>> GetHistoryAsync(
+        PagedResultRequestDto input)
+    {
+        var userId = CurrentUser.GetId();
+        var paging = NormalizeHistoryPaging(input);
+        var query = (await _plantingSessionRepository.GetQueryableAsync())
+            .Where(x => x.UserId == userId && x.Status == PlantingSessionStatus.Claimed);
+        var totalCount = await AsyncExecuter.CountAsync(query);
+
+        if (totalCount == 0)
+        {
+            return new PagedResultDto<PlantingSessionHistoryItemDto>(0, []);
+        }
+
+        var sessions = await AsyncExecuter.ToListAsync(
+            query
+                .OrderByDescending(x => x.ServerEndTime)
+                .ThenByDescending(x => x.ServerStartTime)
+                .Skip(paging.SkipCount)
+                .Take(paging.MaxResultCount));
+
+        return new PagedResultDto<PlantingSessionHistoryItemDto>(
+            totalCount,
+            await MapHistoryItemsAsync(sessions));
+    }
+
+    protected virtual (int SkipCount, int MaxResultCount) NormalizeHistoryPaging(PagedResultRequestDto input)
+    {
+        var skipCount = Math.Max(input.SkipCount, 0);
+        var maxResultCount = input.MaxResultCount <= 0
+            ? DefaultHistoryPageSize
+            : Math.Min(input.MaxResultCount, MaxHistoryPageSize);
+
+        return (skipCount, maxResultCount);
+    }
+
+    protected virtual async Task<List<PlantingSessionHistoryItemDto>> MapHistoryItemsAsync(
+        List<PlantingSession> sessions)
+    {
+        var resultTreeIds = sessions
+            .Where(x => x.ResultTreeId.HasValue)
+            .Select(x => x.ResultTreeId!.Value)
+            .Distinct()
+            .ToList();
+        var tagIds = sessions
+            .Where(x => x.TagId.HasValue)
+            .Select(x => x.TagId!.Value)
+            .Distinct()
+            .ToList();
+
+        var trees = resultTreeIds.Count == 0
+            ? []
+            : await AsyncExecuter.ToListAsync(
+                (await _treeRepository.GetQueryableAsync()).Where(x => resultTreeIds.Contains(x.Id)));
+        var tags = tagIds.Count == 0
+            ? []
+            : await AsyncExecuter.ToListAsync(
+                (await _tagRepository.GetQueryableAsync()).Where(x => tagIds.Contains(x.Id)));
+        var treesById = trees.ToDictionary(x => x.Id);
+        var tagsById = tags.ToDictionary(x => x.Id);
+        var items = new List<PlantingSessionHistoryItemDto>(sessions.Count);
+
+        foreach (var session in sessions)
+        {
+            var item = ObjectMapper.Map<PlantingSession, PlantingSessionHistoryItemDto>(session);
+            item.RequiredFocusDurationSeconds = await GetRequiredFocusDurationSecondsAsync(session);
+
+            if (session.ResultTreeId.HasValue && treesById.TryGetValue(session.ResultTreeId.Value, out var tree))
+            {
+                item.ResultTree = ObjectMapper.Map<Tree, TreeDto>(tree);
+            }
+
+            if (session.TagId.HasValue && tagsById.TryGetValue(session.TagId.Value, out var tag))
+            {
+                item.Tag = ObjectMapper.Map<Tag, TagDto>(tag);
+            }
+
+            items.Add(item);
+        }
+
+        return items;
+    }
+
     protected virtual Tree RollTree(TreePool pool, List<Tree> trees, int plannedDurationMinutes)
     {
         var rarity = RollRarity(pool, plannedDurationMinutes);
@@ -201,6 +301,15 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         }
 
         return candidates[Random.Shared.Next(candidates.Count)];
+    }
+
+    protected virtual bool IsReadyToComplete(
+        PlantingSession session,
+        DateTime serverEndTime,
+        int requiredFocusDurationSeconds)
+    {
+        return (serverEndTime - session.ServerStartTime).TotalSeconds + CompletionToleranceSeconds
+            >= requiredFocusDurationSeconds;
     }
 
     protected virtual TreeRarity RollRarity(TreePool pool, int plannedDurationMinutes)

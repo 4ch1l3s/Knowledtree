@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Knowledtree.Trees;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.AspNetCore.Mvc;
 
 namespace Knowledtree.Web.Controllers;
@@ -12,6 +13,8 @@ namespace Knowledtree.Web.Controllers;
 [IgnoreAntiforgeryToken]
 public class PlantingSessionController : AbpControllerBase
 {
+    private const int DefaultHistoryPageSize = 30;
+
     private readonly IPlantingSessionAppService _plantingSessionAppService;
 
     public PlantingSessionController(IPlantingSessionAppService plantingSessionAppService)
@@ -29,5 +32,24 @@ public class PlantingSessionController : AbpControllerBase
     public virtual async Task<IActionResult> Complete(Guid id, [FromBody] CompletePlantingSessionDto input)
     {
         return Ok(await _plantingSessionAppService.CompleteAsync(id, input));
+    }
+
+    [HttpGet("active")]
+    public virtual async Task<IActionResult> GetActive()
+    {
+        return Ok(await _plantingSessionAppService.GetActiveAsync());
+    }
+
+    [HttpGet("history")]
+    public virtual async Task<IActionResult> GetHistory(
+        [FromQuery] int skipCount = 0,
+        [FromQuery] int maxResultCount = DefaultHistoryPageSize)
+    {
+        return Ok(await _plantingSessionAppService.GetHistoryAsync(
+            new PagedResultRequestDto
+            {
+                SkipCount = skipCount,
+                MaxResultCount = maxResultCount
+            }));
     }
 }

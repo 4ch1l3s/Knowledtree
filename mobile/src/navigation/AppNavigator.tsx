@@ -12,6 +12,7 @@ import TagsScreen from '../screens/TagsScreen';
 import FriendScreen from '../screens/FriendScreen';
 import ShopScreen from '../screens/ShopScreen';
 import TreepediaScreen from '../screens/TreepediaScreen';
+import HistoryScreen from '../screens/HistoryScreen';
 
 // Define the parameter list for the stack navigator
 export type RootStackParamList = {
@@ -24,6 +25,7 @@ export type RootStackParamList = {
     Shop: undefined;
     Tags: undefined;
     Friend: undefined;
+    History: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -56,6 +58,7 @@ const AppNavigator = () => {
                         <Stack.Screen name="Shop" component={ShopScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Tags" component={TagsScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Friend" component={FriendScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>

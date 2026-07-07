@@ -142,6 +142,14 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                             </TouchableOpacity>
 
                             <TouchableOpacity
+                                style={[styles.menuItem, route.name === 'History' && { backgroundColor: '#DDFBEA' }]}
+                                onPress={() => { onClose(); navigation.navigate('History'); }}
+                            >
+                                <FontAwesome name="history" size={scale.ms(16)} color={route.name === 'History' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
+                                <Text style={[styles.menuText, { color: route.name === 'History' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'History' ? 'bold' : '500' }]}>Timeline</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
                                 style={[styles.menuItem, route.name === 'Tags' && { backgroundColor: '#DDFBEA' }]}
                                 onPress={() => { onClose(); navigation.navigate('Tags'); }}
                             >

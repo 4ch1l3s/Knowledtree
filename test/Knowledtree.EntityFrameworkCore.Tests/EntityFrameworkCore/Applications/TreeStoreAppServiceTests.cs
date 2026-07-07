@@ -1,10 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Knowledtree.Tags;
 using Knowledtree.Trees;
 using Knowledtree.UserWallets;
 using Shouldly;
 using Volo.Abp;
+using Volo.Abp.Application.Dtos;
 using Volo.Abp.Validation;
 using Volo.Abp.Domain.Repositories;
 using Xunit;
@@ -19,6 +21,7 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
     private readonly IPlantingSessionAppService _plantingSessionAppService;
     private readonly IAdminTreeAppService _adminTreeAppService;
     private readonly IAdminTreePoolAppService _adminTreePoolAppService;
+    private readonly ITagAppService _tagAppService;
     private readonly IRepository<UserSeedPackage, Guid> _seedPackageRepository;
     private readonly IRepository<PlantingSession, Guid> _plantingSessionRepository;
     private readonly IRepository<UserTree, Guid> _userTreeRepository;
@@ -30,6 +33,7 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
         _plantingSessionAppService = GetRequiredService<IPlantingSessionAppService>();
         _adminTreeAppService = GetRequiredService<IAdminTreeAppService>();
         _adminTreePoolAppService = GetRequiredService<IAdminTreePoolAppService>();
+        _tagAppService = GetRequiredService<ITagAppService>();
         _seedPackageRepository = GetRequiredService<IRepository<UserSeedPackage, Guid>>();
         _plantingSessionRepository = GetRequiredService<IRepository<PlantingSession, Guid>>();
         _userTreeRepository = GetRequiredService<IRepository<UserTree, Guid>>();
@@ -242,6 +246,33 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
     }
 
     [Fact]
+    public async Task Complete_Should_Allow_Five_Minute_Timing_Tolerance()
+    {
+        var (tree, pool) = await CreateActivePoolAsync(cost: 100);
+        var session = await CreateSessionAsync(pool.Id, DateTime.Now);
+
+        var result = await _plantingSessionAppService.CompleteAsync(
+            session.Id,
+            new CompletePlantingSessionDto { ClientEndTime = DateTime.Now });
+
+        result.ResultTree.Id.ShouldBe(tree.Id);
+        result.Session.Status.ShouldBe(PlantingSessionStatus.Claimed);
+    }
+
+    [Fact]
+    public async Task GetActive_Should_Return_Current_Growing_Session()
+    {
+        var (_, pool) = await CreateActivePoolAsync(cost: 100);
+        var session = await CreateReadySessionAsync(pool.Id);
+
+        var activeSession = await _plantingSessionAppService.GetActiveAsync();
+
+        activeSession.ShouldNotBeNull();
+        activeSession!.Id.ShouldBe(session.Id);
+        activeSession.Status.ShouldBe(PlantingSessionStatus.Growing);
+    }
+
+    [Fact]
     public async Task Complete_Should_Increment_Common_Duplicate_And_Credit_Coins()
     {
         var (tree, pool) = await CreateActivePoolAsync(cost: 100);
@@ -296,6 +327,58 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
 
         ownedTree.Tree.Name.ShouldBe(tree.Name);
         ownedTree.TotalObtainedCount.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task GetHistory_Should_Return_Only_Claimed_Sessions_With_Thirty_Item_Pages()
+    {
+        var (tree, pool) = await CreateActivePoolAsync(cost: 100);
+        var tag = await _tagAppService.CreateAsync(new CreateUpdateTagDto
+        {
+            Name = "Reading",
+            ColorCode = "#FFB347"
+        });
+        var latestEndTime = DateTime.Now.AddMinutes(-1);
+        Guid latestSessionId = default;
+
+        for (var index = 0; index < 32; index++)
+        {
+            var session = await CreateClaimedSessionAsync(
+                pool.Id,
+                tree.Id,
+                tag.Id,
+                latestEndTime.AddMinutes(-index));
+
+            if (index == 0)
+            {
+                latestSessionId = session.Id;
+            }
+        }
+
+        await CreateGrowingSessionAsync(pool.Id);
+        await CreateCancelledSessionAsync(pool.Id);
+
+        var firstPage = await _plantingSessionAppService.GetHistoryAsync(new PagedResultRequestDto
+        {
+            SkipCount = 0,
+            MaxResultCount = 100
+        });
+        var secondPage = await _plantingSessionAppService.GetHistoryAsync(new PagedResultRequestDto
+        {
+            SkipCount = 30,
+            MaxResultCount = 30
+        });
+
+        firstPage.TotalCount.ShouldBe(32);
+        firstPage.Items.Count.ShouldBe(30);
+        firstPage.Items.All(x => x.Status == PlantingSessionStatus.Claimed).ShouldBeTrue();
+        firstPage.Items.First().Id.ShouldBe(latestSessionId);
+        firstPage.Items.First().ResultTree.ShouldNotBeNull();
+        firstPage.Items.First().ResultTree!.Id.ShouldBe(tree.Id);
+        firstPage.Items.First().Tag.ShouldNotBeNull();
+        firstPage.Items.First().Tag!.Name.ShouldBe("Reading");
+        secondPage.TotalCount.ShouldBe(32);
+        secondPage.Items.Count.ShouldBe(2);
     }
 
     private async Task<(TreeDto Tree, TreePoolDto Pool)> CreateActivePoolAsync(
@@ -354,11 +437,75 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
         });
     }
 
-    private async Task<PlantingSession> CreateReadySessionAsync(int treePoolId)
+    private async Task<PlantingSession> CreateClaimedSessionAsync(
+        int treePoolId,
+        int treeId,
+        int tagId,
+        DateTime endTime)
     {
         return await WithUnitOfWorkAsync(async () =>
         {
-            var startTime = DateTime.Now.AddMinutes(-5);
+            var startTime = endTime.AddMinutes(-30);
+            var session = new PlantingSession(
+                Guid.NewGuid(),
+                CurrentUserId,
+                treePoolId,
+                tagId,
+                plannedDurationMinutes: 30,
+                clientStartTime: startTime,
+                serverStartTime: startTime);
+            session.Complete(treeId, endTime, endTime, duplicateGemReward: 0, duplicateCoinReward: 0);
+
+            return await _plantingSessionRepository.InsertAsync(session, autoSave: true);
+        });
+    }
+
+    private async Task<PlantingSession> CreateGrowingSessionAsync(int treePoolId)
+    {
+        return await WithUnitOfWorkAsync(async () =>
+        {
+            var startTime = DateTime.Now.AddMinutes(-30);
+            var session = new PlantingSession(
+                Guid.NewGuid(),
+                CurrentUserId,
+                treePoolId,
+                tagId: null,
+                plannedDurationMinutes: 30,
+                clientStartTime: startTime,
+                serverStartTime: startTime);
+
+            return await _plantingSessionRepository.InsertAsync(session, autoSave: true);
+        });
+    }
+
+    private async Task<PlantingSession> CreateCancelledSessionAsync(int treePoolId)
+    {
+        return await WithUnitOfWorkAsync(async () =>
+        {
+            var startTime = DateTime.Now.AddMinutes(-30);
+            var session = new PlantingSession(
+                Guid.NewGuid(),
+                CurrentUserId,
+                treePoolId,
+                tagId: null,
+                plannedDurationMinutes: 30,
+                clientStartTime: startTime,
+                serverStartTime: startTime);
+            session.Cancel();
+
+            return await _plantingSessionRepository.InsertAsync(session, autoSave: true);
+        });
+    }
+
+    private async Task<PlantingSession> CreateReadySessionAsync(int treePoolId)
+    {
+        return await CreateSessionAsync(treePoolId, DateTime.Now.AddMinutes(-5));
+    }
+
+    private async Task<PlantingSession> CreateSessionAsync(int treePoolId, DateTime startTime)
+    {
+        return await WithUnitOfWorkAsync(async () =>
+        {
             var session = new PlantingSession(
                 Guid.NewGuid(),
                 CurrentUserId,
