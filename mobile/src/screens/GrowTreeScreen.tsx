@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     ActivityIndicator,
     Alert,
+    AppState,
     GestureResponderEvent,
     Image,
     KeyboardAvoidingView,
@@ -17,6 +18,7 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import Svg, { Circle } from 'react-native-svg';
@@ -36,6 +38,7 @@ import {
     CompletePlantingSessionResultDto,
     PlantingSessionDto,
     completePlantingSession,
+    failPlantingSession,
     getActivePlantingSession,
     startPlantingSession,
 } from '../api/plantingSessions';
@@ -63,6 +66,10 @@ const PLOT_TOUCH_RADIUS = PLOT_TOUCH_SIZE / 2;
 const SEED_MODAL_TARGET_HEIGHT = scale.vs(646);
 const ACTIVE_PLANTING_SESSION_CODE = 'Knowledtree:TreeStore:00010';
 const PLANTING_SESSION_NOT_READY_CODE = 'Knowledtree:TreeStore:00012';
+const ACTIVE_SESSION_ID_KEY = '@knowledtree/activePlantingSessionId';
+const PENDING_FAILED_SESSION_ID_KEY = '@knowledtree/pendingFailedPlantingSessionId';
+const SESSION_FAILED_MESSAGE = 'You left or paused the session. The seed was consumed and no reward can be claimed.';
+let guardedSessionIdThisRuntime: string | null = null;
 const TAG_COLORS = [
     '#3B6B3B',
     '#E85D5D',
@@ -105,6 +112,28 @@ const isPlantingSessionNotReadyError = (error: any) => (
     error?.response?.data?.error?.code === PLANTING_SESSION_NOT_READY_CODE
 );
 
+const isFailEndpointUnavailableError = (error: any) => error?.response?.status === 405;
+
+const persistActiveSessionGuard = async (sessionId: string) => {
+    guardedSessionIdThisRuntime = sessionId;
+    await AsyncStorage.multiSet([
+        [ACTIVE_SESSION_ID_KEY, sessionId],
+        [PENDING_FAILED_SESSION_ID_KEY, ''],
+    ]);
+};
+
+const persistPendingSessionFailure = async (sessionId: string) => {
+    await AsyncStorage.setItem(PENDING_FAILED_SESSION_ID_KEY, sessionId);
+};
+
+const clearPersistedSessionGuard = async () => {
+    guardedSessionIdThisRuntime = null;
+    await AsyncStorage.multiRemove([
+        ACTIVE_SESSION_ID_KEY,
+        PENDING_FAILED_SESSION_ID_KEY,
+    ]);
+};
+
 const GrowTreeScreen = () => {
     const navigation = useNavigation<any>();
     const { theme } = useTheme();
@@ -138,12 +167,22 @@ const GrowTreeScreen = () => {
     const [formColor, setFormColor] = useState(TAG_COLORS[0]);
     const [creatingTag, setCreatingTag] = useState(false);
     const [activeSession, setActiveSession] = useState<PlantingSessionDto | null>(null);
+    const activeSessionRef = useRef<PlantingSessionDto | null>(null);
+    const isFailingSessionRef = useRef(false);
+    const failErrorAlertSessionIdRef = useRef<string | null>(null);
+    const nextFailAttemptAtRef = useRef(0);
     const [remainingSeconds, setRemainingSeconds] = useState(getPlannedFocusDurationSeconds(INITIAL_MINUTES));
+    const [isStartConfirming, setIsStartConfirming] = useState(false);
     const [isStartingSession, setIsStartingSession] = useState(false);
     const [isCompletingSession, setIsCompletingSession] = useState(false);
+    const [isFailingSession, setIsFailingSession] = useState(false);
     const [rewardResult, setRewardResult] = useState<CompletePlantingSessionResultDto | null>(null);
 
-    const canEditSession = !activeSession && !isStartingSession && !isCompletingSession;
+    const canEditSession = !activeSession
+        && !isStartConfirming
+        && !isStartingSession
+        && !isCompletingSession
+        && !isFailingSession;
     const displaySeconds = activeSession ? remainingSeconds : getPlannedFocusDurationSeconds(focusMinutes);
     const isReadyToClaim = !!activeSession && remainingSeconds <= 0;
     const progress = (focusMinutes - MIN_MINUTES) / (MAX_MINUTES - MIN_MINUTES);
@@ -154,6 +193,24 @@ const GrowTreeScreen = () => {
     const knobY = RING_RADIUS - Math.cos(knobRadians) * KNOB_RADIUS - KNOB_SIZE / 2;
     const displayedTagName = selectedTag?.name || 'Deep Work';
     const displayedTagColor = selectedTag?.colorCode || '#3C6540';
+    const seedHintText = activeSession
+        ? 'Session locked. Stay on this screen.'
+        : selectedSeedPackage?.treePoolName || 'Tap the soil to choose a seed';
+    const isPrimaryActionBusy = isStartConfirming
+        || isStartingSession
+        || isCompletingSession
+        || isFailingSession;
+    const isPrimaryActionDisabled = isPrimaryActionBusy || (!!activeSession && !isReadyToClaim);
+    const primaryActionIcon = activeSession
+        ? (isReadyToClaim ? 'gift' : 'lock')
+        : 'play';
+    const primaryActionLabel = activeSession
+        ? (isReadyToClaim ? 'Claim Reward' : 'Session Locked')
+        : 'Start Focus';
+
+    useEffect(() => {
+        activeSessionRef.current = activeSession;
+    }, [activeSession]);
 
     useEffect(() => {
         if (!activeSession) {
@@ -353,23 +410,182 @@ const GrowTreeScreen = () => {
         const session = await getActivePlantingSession();
 
         if (!session) {
+            await clearPersistedSessionGuard();
             return false;
         }
 
+        const [[, persistedActiveSessionId], [, pendingFailedSessionId]] = await AsyncStorage.multiGet([
+            ACTIVE_SESSION_ID_KEY,
+            PENDING_FAILED_SESSION_ID_KEY,
+        ]);
+        const shouldFailRecoveredSession = pendingFailedSessionId === session.id
+            || (
+                persistedActiveSessionId === session.id
+                && guardedSessionIdThisRuntime !== session.id
+            );
+
+        if (shouldFailRecoveredSession) {
+            setIsFailingSession(true);
+            activeSessionRef.current = session;
+
+            try {
+                await persistPendingSessionFailure(session.id);
+                await failPlantingSession(session.id, {
+                    clientEndTime: new Date().toISOString(),
+                });
+                await clearPersistedSessionGuard();
+                activeSessionRef.current = null;
+                setRewardResult(null);
+                setActiveSession(null);
+                setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
+                Alert.alert('Session failed', SESSION_FAILED_MESSAGE);
+            } catch (error: any) {
+                activeSessionRef.current = null;
+                setRewardResult(null);
+                setActiveSession(null);
+                setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
+
+                if (failErrorAlertSessionIdRef.current !== session.id) {
+                    failErrorAlertSessionIdRef.current = session.id;
+                    Alert.alert(
+                        'Cannot fail session',
+                        isFailEndpointUnavailableError(error)
+                            ? 'The backend is still running an older build. Restart the backend, then open the app again.'
+                            : getErrorMessage(error, 'Please try again.'),
+                    );
+                }
+            } finally {
+                setIsFailingSession(false);
+            }
+
+            return false;
+        }
+
+        await persistActiveSessionGuard(session.id);
         setRewardResult(null);
+        activeSessionRef.current = session;
         setActiveSession(session);
         setRemainingSeconds(session.requiredFocusDurationSeconds);
         return true;
-    }, []);
+    }, [focusMinutes]);
 
     useEffect(() => {
         resumeActiveSession().catch(() => undefined);
     }, [resumeActiveSession]);
 
-    const handleStartFocus = useCallback(async () => {
+    const failActiveSession = useCallback(async (
+        session: PlantingSessionDto,
+        options?: {
+            onSucceeded?: () => void;
+            showAlert?: boolean;
+            showErrorAlert?: boolean;
+        },
+    ) => {
+        if (isFailingSessionRef.current) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now < nextFailAttemptAtRef.current) {
+            return;
+        }
+
+        nextFailAttemptAtRef.current = now + 3000;
+        isFailingSessionRef.current = true;
+        setIsFailingSession(true);
+        activeSessionRef.current = null;
+        setRewardResult(null);
+        setActiveSession(null);
+        setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
+
+        try {
+            await persistPendingSessionFailure(session.id);
+            await failPlantingSession(session.id, {
+                clientEndTime: new Date().toISOString(),
+            });
+            await clearPersistedSessionGuard();
+
+            options?.onSucceeded?.();
+
+            if (options?.showAlert !== false) {
+                Alert.alert('Session failed', SESSION_FAILED_MESSAGE);
+            }
+        } catch (error: any) {
+            if (options?.showErrorAlert !== false && failErrorAlertSessionIdRef.current !== session.id) {
+                failErrorAlertSessionIdRef.current = session.id;
+                Alert.alert(
+                    'Cannot fail session',
+                    isFailEndpointUnavailableError(error)
+                        ? 'The backend is still running an older build. Restart the backend, then open the app again.'
+                        : getErrorMessage(error, 'Please try again.'),
+                );
+            }
+        } finally {
+            isFailingSessionRef.current = false;
+            setIsFailingSession(false);
+        }
+    }, [focusMinutes]);
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
+            const session = activeSessionRef.current;
+
+            if (!session) {
+                return;
+            }
+
+            event.preventDefault();
+            failActiveSession(session, {
+                onSucceeded: () => navigation.dispatch(event.data.action),
+            });
+        });
+
+        return unsubscribe;
+    }, [failActiveSession, navigation]);
+
+    useEffect(() => {
+        const failInterruptedSession = () => {
+            const session = activeSessionRef.current;
+
+            if (session) {
+                persistPendingSessionFailure(session.id).catch(() => undefined);
+            }
+        };
+        const failPendingSessionOnFocus = () => {
+            const session = activeSessionRef.current;
+
+            if (!session) {
+                return;
+            }
+
+            AsyncStorage.getItem(PENDING_FAILED_SESSION_ID_KEY)
+                .then(pendingFailedSessionId => {
+                    if (pendingFailedSessionId === session.id) {
+                        failActiveSession(session, { showErrorAlert: false });
+                    }
+                })
+                .catch(() => undefined);
+        };
+        const changeSubscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') {
+                failPendingSessionOnFocus();
+                return;
+            }
+
+            failInterruptedSession();
+        });
+        const blurSubscription = AppState.addEventListener('blur', failInterruptedSession);
+        const focusSubscription = AppState.addEventListener('focus', failPendingSessionOnFocus);
+
+        return () => {
+            changeSubscription.remove();
+            blurSubscription.remove();
+            focusSubscription.remove();
+        };
+    }, [failActiveSession]);
+
+    const beginStartFocus = useCallback(async () => {
         if (!selectedSeedPackage) {
-            Alert.alert('Select a seed', 'Choose a seed package before starting focus.');
-            openSeedPicker();
             return;
         }
 
@@ -384,6 +600,8 @@ const GrowTreeScreen = () => {
                 clientStartTime: new Date().toISOString(),
             });
 
+            await persistActiveSessionGuard(session.id);
+            activeSessionRef.current = session;
             setActiveSession(session);
             setRemainingSeconds(session.requiredFocusDurationSeconds);
             decrementSelectedSeedPackage(session.treePoolId);
@@ -399,10 +617,51 @@ const GrowTreeScreen = () => {
     }, [
         decrementSelectedSeedPackage,
         focusMinutes,
-        openSeedPicker,
         resumeActiveSession,
         selectedSeedPackage,
         selectedTag,
+    ]);
+
+    const handleStartFocus = useCallback(() => {
+        if (!selectedSeedPackage) {
+            Alert.alert('Select a seed', 'Choose a seed package before starting focus.');
+            openSeedPicker();
+            return;
+        }
+
+        if (isStartConfirming) {
+            return;
+        }
+
+        setIsStartConfirming(true);
+        Alert.alert(
+            'Start focus session?',
+            'Once started, you cannot stop midway. Leaving or pausing will fail the session, consume the seed, and give no reward.',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                    onPress: () => setIsStartConfirming(false),
+                },
+                {
+                    text: 'Start',
+                    style: 'destructive',
+                    onPress: () => {
+                        setIsStartConfirming(false);
+                        beginStartFocus();
+                    },
+                },
+            ],
+            {
+                cancelable: true,
+                onDismiss: () => setIsStartConfirming(false),
+            },
+        );
+    }, [
+        beginStartFocus,
+        isStartConfirming,
+        openSeedPicker,
+        selectedSeedPackage,
     ]);
 
     const handleCompleteFocus = useCallback(async () => {
@@ -423,6 +682,8 @@ const GrowTreeScreen = () => {
             });
 
             setRewardResult(result);
+            await clearPersistedSessionGuard();
+            activeSessionRef.current = null;
             setActiveSession(null);
             setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
         } catch (error: any) {
@@ -515,7 +776,7 @@ const GrowTreeScreen = () => {
     }), [shouldHandleProgressGesture, updateFocusMinutes]);
 
     return (
-        <AppLayout title="Grow a tree" iconPosition="left">
+        <AppLayout title="Grow a tree" iconPosition="left" menuDisabled={!!activeSession}>
             <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
                 <View style={[
                     styles.panel,
@@ -573,9 +834,9 @@ const GrowTreeScreen = () => {
 
                     <TouchableOpacity
                         style={[
-                        styles.focusPill,
-                        isShortScreen && styles.focusPillCompact,
-                        !canEditSession && styles.controlDisabled,
+                            styles.focusPill,
+                            isShortScreen && styles.focusPillCompact,
+                            !canEditSession && styles.controlDisabled,
                         ]}
                         onPress={openTagPicker}
                         activeOpacity={0.78}
@@ -586,7 +847,7 @@ const GrowTreeScreen = () => {
                     </TouchableOpacity>
 
                     <Text numberOfLines={1} style={styles.seedHintText}>
-                        {selectedSeedPackage ? selectedSeedPackage.treePoolName : 'Tap the soil to choose a seed'}
+                        {seedHintText}
                     </Text>
 
                     <Text style={[
@@ -604,25 +865,23 @@ const GrowTreeScreen = () => {
                     <TouchableOpacity
                         style={[
                             styles.startButton,
-                            (isStartingSession || isCompletingSession || (activeSession && !isReadyToClaim)) && styles.startButtonDisabled,
+                            isPrimaryActionDisabled && styles.startButtonDisabled,
                         ]}
                         activeOpacity={0.82}
                         onPress={handlePrimaryAction}
-                        disabled={isStartingSession || isCompletingSession || (!!activeSession && !isReadyToClaim)}
+                        disabled={isPrimaryActionDisabled}
                     >
-                        {isStartingSession || isCompletingSession ? (
+                        {isPrimaryActionBusy ? (
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
                             <>
                                 <Icon
-                                    name={activeSession ? 'gift' : 'play'}
+                                    name={primaryActionIcon}
                                     size={scale.ms(15)}
                                     color="#FFFFFF"
                                 />
                                 <Text style={styles.startButtonText}>
-                                    {activeSession
-                                        ? (isReadyToClaim ? 'Claim Reward' : 'Growing...')
-                                        : 'Start Focus'}
+                                    {primaryActionLabel}
                                 </Text>
                             </>
                         )}

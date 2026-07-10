@@ -25,6 +25,12 @@ public class CompletePlantingSessionDto
 }
 
 [Serializable]
+public class FailPlantingSessionDto
+{
+    public DateTime? ClientEndTime { get; set; }
+}
+
+[Serializable]
 public class PlantingSessionDto
 {
     public Guid Id { get; set; }

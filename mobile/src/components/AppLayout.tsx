@@ -11,9 +11,16 @@ interface AppLayoutProps {
     children: React.ReactNode;
     iconPosition?: 'left' | 'right';
     rightAction?: React.ReactNode;
+    menuDisabled?: boolean;
 }
 
-const AppLayout: React.FC<AppLayoutProps> = ({ title, children, iconPosition = 'left', rightAction }) => {
+const AppLayout: React.FC<AppLayoutProps> = ({
+    title,
+    children,
+    iconPosition = 'left',
+    rightAction,
+    menuDisabled = false,
+}) => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const { theme, isDark } = useTheme();
     const { logout } = useContext(AuthContext);
@@ -24,9 +31,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ title, children, iconPosition = '
             
             <AppHeader 
                 title={title} 
-                onMenuPress={() => setIsDrawerOpen(true)} 
+                onMenuPress={() => {
+                    if (!menuDisabled) {
+                        setIsDrawerOpen(true);
+                    }
+                }}
                 iconPosition={iconPosition}
                 rightAction={rightAction}
+                menuDisabled={menuDisabled}
             />
             
             <View style={styles.content}>

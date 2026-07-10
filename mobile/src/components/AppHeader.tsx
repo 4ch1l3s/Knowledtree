@@ -9,16 +9,27 @@ interface AppHeaderProps {
     onMenuPress: () => void;
     iconPosition?: 'left' | 'right';
     rightAction?: React.ReactNode;
+    menuDisabled?: boolean;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ title, onMenuPress, iconPosition = 'left', rightAction }) => {
+const AppHeader: React.FC<AppHeaderProps> = ({
+    title,
+    onMenuPress,
+    iconPosition = 'left',
+    rightAction,
+    menuDisabled = false,
+}) => {
     const { theme } = useTheme();
 
     // From the design: title and icon use a dark green color 
     const headerColor = theme.colors.primaryDark;
 
     const renderMenuButton = () => (
-        <TouchableOpacity onPress={onMenuPress} style={styles.iconButton}>
+        <TouchableOpacity
+            onPress={onMenuPress}
+            style={[styles.iconButton, menuDisabled && styles.iconButtonDisabled]}
+            disabled={menuDisabled}
+        >
             <FontAwesome name="navicon" size={scale.ms(22)} color={headerColor} />
         </TouchableOpacity>
     );
@@ -67,6 +78,9 @@ const styles = StyleSheet.create({
         width: scale.s(40),
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    iconButtonDisabled: {
+        opacity: 0.36,
     }
 });
 
