@@ -24,5 +24,6 @@ public class KnowledtreeApplicationAutoMapperProfile : Profile
         CreateMap<TreePool, TreePoolDto>();
         CreateMap<UserWallet, WalletDto>();
         CreateMap<PlantingSession, PlantingSessionDto>();
+        CreateMap<PlantingSession, PlantingSessionHistoryItemDto>();
     }
 }

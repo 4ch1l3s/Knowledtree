@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using Knowledtree.Tags;
 
 namespace Knowledtree.Trees;
 
@@ -69,4 +70,12 @@ public class CompletePlantingSessionResultDto
     public int TotalObtainedCount { get; set; }
 
     public WalletDto Wallet { get; set; } = null!;
+}
+
+[Serializable]
+public class PlantingSessionHistoryItemDto : PlantingSessionDto
+{
+    public TreeDto? ResultTree { get; set; }
+
+    public TagDto? Tag { get; set; }
 }

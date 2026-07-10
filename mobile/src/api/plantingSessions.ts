@@ -1,5 +1,6 @@
 import client from './client';
 import { TreeDto, WalletDto } from './store';
+import { TagDto } from './tags';
 
 export type PlantingSessionStatus = 0 | 1 | 2 | 3 | 4;
 
@@ -40,6 +41,21 @@ export interface CompletePlantingSessionResultDto {
     wallet: WalletDto;
 }
 
+export interface PlantingSessionHistoryItemDto extends PlantingSessionDto {
+    resultTree?: TreeDto | null;
+    tag?: TagDto | null;
+}
+
+export interface PagedResultDto<T> {
+    totalCount: number;
+    items: T[];
+}
+
+export interface PlantingSessionHistoryPageInput {
+    skipCount: number;
+    maxResultCount: number;
+}
+
 export const startPlantingSession = async (
     input: StartPlantingSessionDto,
 ): Promise<PlantingSessionDto> => {
@@ -54,6 +70,21 @@ export const completePlantingSession = async (
     const response = await client.post<CompletePlantingSessionResultDto>(
         `/api/planting-sessions/${id}/complete`,
         input,
+    );
+    return response.data;
+};
+
+export const getActivePlantingSession = async (): Promise<PlantingSessionDto | null> => {
+    const response = await client.get<PlantingSessionDto | null>('/api/planting-sessions/active');
+    return response.data;
+};
+
+export const getPlantingSessionHistory = async (
+    input: PlantingSessionHistoryPageInput,
+): Promise<PagedResultDto<PlantingSessionHistoryItemDto>> => {
+    const response = await client.get<PagedResultDto<PlantingSessionHistoryItemDto>>(
+        '/api/planting-sessions/history',
+        { params: input },
     );
     return response.data;
 };

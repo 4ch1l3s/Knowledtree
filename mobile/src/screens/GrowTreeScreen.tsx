@@ -36,6 +36,7 @@ import {
     CompletePlantingSessionResultDto,
     PlantingSessionDto,
     completePlantingSession,
+    getActivePlantingSession,
     startPlantingSession,
 } from '../api/plantingSessions';
 import { resolveSeedPackageImage } from '../utils/seedPackageAssets';
@@ -60,6 +61,8 @@ const SEAM_LOCK_DEGREES = 90;
 const PLOT_TOUCH_SIZE = RING_SIZE - scale.s(60);
 const PLOT_TOUCH_RADIUS = PLOT_TOUCH_SIZE / 2;
 const SEED_MODAL_TARGET_HEIGHT = scale.vs(646);
+const ACTIVE_PLANTING_SESSION_CODE = 'Knowledtree:TreeStore:00010';
+const PLANTING_SESSION_NOT_READY_CODE = 'Knowledtree:TreeStore:00012';
 const TAG_COLORS = [
     '#3B6B3B',
     '#E85D5D',
@@ -85,10 +88,22 @@ const getPlannedFocusDurationSeconds = (plannedDurationMinutes: number) => (
 );
 
 const getErrorMessage = (error: any, fallback: string) =>
-    error?.response?.data?.error?.message
-    || error?.response?.data?.message
-    || error?.message
-    || fallback;
+    error?.response?.data?.error?.code === ACTIVE_PLANTING_SESSION_CODE
+        ? 'A focus session is already running.'
+        : error?.response?.data?.error?.code === PLANTING_SESSION_NOT_READY_CODE
+        ? 'The session is not ready to claim yet.'
+        : error?.response?.data?.error?.message
+            || error?.response?.data?.message
+            || error?.message
+            || fallback;
+
+const isActivePlantingSessionError = (error: any) => (
+    error?.response?.data?.error?.code === ACTIVE_PLANTING_SESSION_CODE
+);
+
+const isPlantingSessionNotReadyError = (error: any) => (
+    error?.response?.data?.error?.code === PLANTING_SESSION_NOT_READY_CODE
+);
 
 const GrowTreeScreen = () => {
     const navigation = useNavigation<any>();
@@ -334,6 +349,23 @@ const GrowTreeScreen = () => {
         });
     }, []);
 
+    const resumeActiveSession = useCallback(async () => {
+        const session = await getActivePlantingSession();
+
+        if (!session) {
+            return false;
+        }
+
+        setRewardResult(null);
+        setActiveSession(session);
+        setRemainingSeconds(session.requiredFocusDurationSeconds);
+        return true;
+    }, []);
+
+    useEffect(() => {
+        resumeActiveSession().catch(() => undefined);
+    }, [resumeActiveSession]);
+
     const handleStartFocus = useCallback(async () => {
         if (!selectedSeedPackage) {
             Alert.alert('Select a seed', 'Choose a seed package before starting focus.');
@@ -356,11 +388,22 @@ const GrowTreeScreen = () => {
             setRemainingSeconds(session.requiredFocusDurationSeconds);
             decrementSelectedSeedPackage(session.treePoolId);
         } catch (error: any) {
+            if (isActivePlantingSessionError(error) && await resumeActiveSession()) {
+                return;
+            }
+
             Alert.alert('Cannot start focus', getErrorMessage(error, 'Please try again.'));
         } finally {
             setIsStartingSession(false);
         }
-    }, [decrementSelectedSeedPackage, focusMinutes, openSeedPicker, selectedSeedPackage, selectedTag]);
+    }, [
+        decrementSelectedSeedPackage,
+        focusMinutes,
+        openSeedPicker,
+        resumeActiveSession,
+        selectedSeedPackage,
+        selectedTag,
+    ]);
 
     const handleCompleteFocus = useCallback(async () => {
         if (!activeSession) {
@@ -383,6 +426,12 @@ const GrowTreeScreen = () => {
             setActiveSession(null);
             setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
         } catch (error: any) {
+            if (isPlantingSessionNotReadyError(error)) {
+                setRemainingSeconds(1);
+                Alert.alert('Still growing', getErrorMessage(error, 'The session is not ready to claim yet.'));
+                return;
+            }
+
             Alert.alert('Cannot claim reward', getErrorMessage(error, 'Please try again.'));
         } finally {
             setIsCompletingSession(false);
