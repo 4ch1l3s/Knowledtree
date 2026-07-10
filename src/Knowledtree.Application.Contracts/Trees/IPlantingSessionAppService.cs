@@ -11,6 +11,8 @@ public interface IPlantingSessionAppService : IApplicationService
 
     Task<CompletePlantingSessionResultDto> CompleteAsync(Guid id, CompletePlantingSessionDto input);
 
+    Task<PlantingSessionDto> FailAsync(Guid id, FailPlantingSessionDto input);
+
     Task<PlantingSessionDto?> GetActiveAsync();
 
     Task<PagedResultDto<PlantingSessionHistoryItemDto>> GetHistoryAsync(PagedResultRequestDto input);

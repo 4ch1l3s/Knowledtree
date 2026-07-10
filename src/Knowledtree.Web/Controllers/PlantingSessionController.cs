@@ -34,6 +34,12 @@ public class PlantingSessionController : AbpControllerBase
         return Ok(await _plantingSessionAppService.CompleteAsync(id, input));
     }
 
+    [HttpPost("{id}/fail")]
+    public virtual async Task<IActionResult> Fail(Guid id, [FromBody] FailPlantingSessionDto input)
+    {
+        return Ok(await _plantingSessionAppService.FailAsync(id, input));
+    }
+
     [HttpGet("active")]
     public virtual async Task<IActionResult> GetActive()
     {

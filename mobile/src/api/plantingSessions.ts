@@ -15,6 +15,10 @@ export interface CompletePlantingSessionDto {
     clientEndTime?: string | null;
 }
 
+export interface FailPlantingSessionDto {
+    clientEndTime?: string | null;
+}
+
 export interface PlantingSessionDto {
     id: string;
     treePoolId: number;
@@ -69,6 +73,17 @@ export const completePlantingSession = async (
 ): Promise<CompletePlantingSessionResultDto> => {
     const response = await client.post<CompletePlantingSessionResultDto>(
         `/api/planting-sessions/${id}/complete`,
+        input,
+    );
+    return response.data;
+};
+
+export const failPlantingSession = async (
+    id: string,
+    input: FailPlantingSessionDto,
+): Promise<PlantingSessionDto> => {
+    const response = await client.post<PlantingSessionDto>(
+        `/api/planting-sessions/${id}/fail`,
         input,
     );
     return response.data;

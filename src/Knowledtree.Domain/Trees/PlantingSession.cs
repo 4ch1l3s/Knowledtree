@@ -73,6 +73,18 @@ public class PlantingSession : AuditedAggregateRoot<Guid>
         Status = PlantingSessionStatus.Claimed;
     }
 
+    public virtual void Fail(DateTime? clientEndTime, DateTime serverEndTime)
+    {
+        if (Status != PlantingSessionStatus.Growing)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidPlantingSessionStatus);
+        }
+
+        ClientEndTime = clientEndTime;
+        ServerEndTime = serverEndTime;
+        Status = PlantingSessionStatus.Failed;
+    }
+
     public virtual void Cancel()
     {
         if (Status != PlantingSessionStatus.Growing)

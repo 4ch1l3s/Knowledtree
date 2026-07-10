@@ -89,11 +89,6 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         }
 
         var pool = await _treePoolRepository.GetAsync(input.TreePoolId);
-        if (!pool.IsAvailableAt(Clock.Now))
-        {
-            throw new BusinessException(KnowledtreeDomainErrorCodes.TreePoolUnavailable);
-        }
-
         var trees = await GetPoolTreesAsync(pool.Id);
         TreePoolValidationHelper.EnsureRequiredRarityItems(pool, trees);
         TreePoolValidationHelper.EnsureRequiredRarityItems(
@@ -134,6 +129,11 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
         if (session.UserId != userId)
         {
             throw new EntityNotFoundException(typeof(PlantingSession), id);
+        }
+
+        if (session.Status != PlantingSessionStatus.Growing)
+        {
+            throw new BusinessException(KnowledtreeDomainErrorCodes.InvalidPlantingSessionStatus);
         }
 
         var serverEndTime = Clock.Now;
@@ -193,6 +193,23 @@ public class PlantingSessionAppService : KnowledtreeAppService, IPlantingSession
             TotalObtainedCount = userTree.TotalObtainedCount,
             Wallet = MapWallet(wallet)
         };
+    }
+
+    public virtual async Task<PlantingSessionDto> FailAsync(Guid id, FailPlantingSessionDto input)
+    {
+        var userId = CurrentUser.GetId();
+        var session = await _plantingSessionRepository.GetAsync(id);
+
+        if (session.UserId != userId)
+        {
+            throw new EntityNotFoundException(typeof(PlantingSession), id);
+        }
+
+        var requiredFocusDurationSeconds = await GetRequiredFocusDurationSecondsAsync(session);
+        session.Fail(input.ClientEndTime, Clock.Now);
+        await _plantingSessionRepository.UpdateAsync(session, autoSave: true);
+
+        return MapSession(session, requiredFocusDurationSeconds);
     }
 
     public virtual async Task<PlantingSessionDto?> GetActiveAsync()

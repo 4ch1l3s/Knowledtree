@@ -187,6 +187,37 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
         package.Quantity.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task Start_Should_Allow_Owned_SeedPackage_After_Pool_Window_Ends()
+    {
+        var (_, pool) = await CreateActivePoolAsync(cost: 100);
+        await _storeAppService.BuySeedPackageAsync(pool.Id);
+        await _adminTreePoolAppService.UpdateAsync(pool.Id, new CreateUpdateTreePoolDto
+        {
+            Name = pool.Name,
+            PoolType = pool.PoolType,
+            CurrencyType = pool.CurrencyType,
+            Cost = pool.Cost,
+            CommonRate = pool.CommonRate,
+            RareRate = pool.RareRate,
+            GoldRate = pool.GoldRate,
+            StartTime = DateTime.Now.AddDays(-2),
+            EndTime = DateTime.Now.AddDays(-1),
+            IsActive = true,
+            PackageImageKey = pool.PackageImageKey
+        });
+
+        var session = await _plantingSessionAppService.StartAsync(new StartPlantingSessionDto
+        {
+            TreePoolId = pool.Id,
+            PlannedDurationMinutes = 30
+        });
+
+        session.Status.ShouldBe(PlantingSessionStatus.Growing);
+        var package = await GetSeedPackageAsync(pool.Id);
+        package.Quantity.ShouldBe(0);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(29)]
@@ -226,6 +257,39 @@ public class TreeStoreAppServiceTests : KnowledtreeEntityFrameworkCoreTestBase
             }));
 
         exception.Code.ShouldBe(KnowledtreeDomainErrorCodes.ActivePlantingSessionAlreadyExists);
+    }
+
+    [Fact]
+    public async Task Fail_Should_End_Active_Session_Without_Reward_Or_Seed_Refund()
+    {
+        var (tree, pool) = await CreateActivePoolAsync(cost: 100);
+        await _storeAppService.BuySeedPackageAsync(pool.Id);
+        var session = await _plantingSessionAppService.StartAsync(new StartPlantingSessionDto
+        {
+            TreePoolId = pool.Id,
+            PlannedDurationMinutes = 30
+        });
+
+        var failedSession = await _plantingSessionAppService.FailAsync(
+            session.Id,
+            new FailPlantingSessionDto { ClientEndTime = DateTime.Now });
+
+        failedSession.Status.ShouldBe(PlantingSessionStatus.Failed);
+        failedSession.ServerEndTime.ShouldNotBeNull();
+        (await _plantingSessionAppService.GetActiveAsync()).ShouldBeNull();
+        (await GetSeedPackageAsync(pool.Id)).Quantity.ShouldBe(0);
+        await WithUnitOfWorkAsync(async () =>
+        {
+            var userTrees = await _userTreeRepository.GetListAsync();
+            userTrees.Any(x => x.UserId == CurrentUserId && x.TreeId == tree.Id).ShouldBeFalse();
+        });
+
+        var exception = await Should.ThrowAsync<BusinessException>(() =>
+            _plantingSessionAppService.CompleteAsync(
+                session.Id,
+                new CompletePlantingSessionDto { ClientEndTime = DateTime.Now }));
+
+        exception.Code.ShouldBe(KnowledtreeDomainErrorCodes.InvalidPlantingSessionStatus);
     }
 
     [Fact]
