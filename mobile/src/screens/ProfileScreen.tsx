@@ -1,5 +1,7 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
     View,
     Text,
     StyleSheet,
@@ -16,6 +18,11 @@ import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
 import AvatarPicker from '../components/AvatarPicker';
 import AppDrawer from '../components/AppDrawer';
+import { getMyWallet, getTreepedia } from '../api/store';
+import {
+    PlantingSessionHistoryItemDto,
+    getPlantingSessionHistory,
+} from '../api/plantingSessions';
 
 // ── Màu từ Figma ──
 const GREEN_BG = '#568259';
@@ -24,14 +31,24 @@ const HEADER_TEXT = '#3D5A40';
 const CARD_BORDER = '#C1C9BE';
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const GREEN_HEIGHT = SCREEN_HEIGHT * 0.30;
+const HISTORY_PAGE_SIZE = 100;
+const HEATMAP_DAYS = 90;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// ── Tạo dữ liệu heatmap giả (91 ngày = 13 tuần) ──
-const generateHeatmapData = (): number[] => {
-    const data: number[] = [];
-    for (let i = 0; i < 91; i++) {
-        data.push(Math.floor(Math.random() * 4));
-    }
-    return data;
+interface ProfileStats {
+    treesUnlocked: number;
+    coin: number;
+    focusSeconds: number;
+    streakDays: number;
+    heatmapData: number[];
+}
+
+const EMPTY_PROFILE_STATS: ProfileStats = {
+    treesUnlocked: 0,
+    coin: 0,
+    focusSeconds: 0,
+    streakDays: 0,
+    heatmapData: Array.from({ length: HEATMAP_DAYS }, () => 0),
 };
 
 // ── Màu heatmap ──
@@ -41,6 +58,170 @@ const HEATMAP_COLORS: Record<number, string> = {
     2: '#568259',
     3: '#2E5732',
 };
+
+const getErrorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.error?.message
+    || error?.response?.data?.message
+    || error?.message
+    || fallback;
+
+const parseDate = (value?: string | null): Date | null => {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const pad2 = (value: number) => value.toString().padStart(2, '0');
+
+const getDateKey = (date: Date) =>
+    `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+const startOfLocalDay = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const addDays = (date: Date, days: number) =>
+    new Date(date.getTime() + days * MS_PER_DAY);
+
+const getSessionEndDate = (item: PlantingSessionHistoryItemDto) =>
+    parseDate(item.serverEndTime) || parseDate(item.clientEndTime);
+
+const getSessionDurationSeconds = (item: PlantingSessionHistoryItemDto) => {
+    const startDate = parseDate(item.serverStartTime) || parseDate(item.clientStartTime);
+    const endDate = getSessionEndDate(item);
+
+    if (startDate && endDate) {
+        return Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 1000));
+    }
+
+    return item.requiredFocusDurationSeconds || item.plannedDurationMinutes * 60;
+};
+
+const getHeatmapLevel = (seconds: number) => {
+    const minutes = seconds / 60;
+
+    if (minutes <= 0) {
+        return 0;
+    }
+
+    if (minutes < 30) {
+        return 1;
+    }
+
+    if (minutes < 90) {
+        return 2;
+    }
+
+    return 3;
+};
+
+const getSessionDayTotals = (history: PlantingSessionHistoryItemDto[]) => {
+    const totalsByDay = new Map<string, number>();
+
+    history.forEach(item => {
+        const endDate = getSessionEndDate(item);
+        if (!endDate) {
+            return;
+        }
+
+        const key = getDateKey(endDate);
+        totalsByDay.set(key, (totalsByDay.get(key) || 0) + getSessionDurationSeconds(item));
+    });
+
+    return totalsByDay;
+};
+
+const buildHeatmapData = (history: PlantingSessionHistoryItemDto[]) => {
+    const totalsByDay = getSessionDayTotals(history);
+    const today = startOfLocalDay(new Date());
+    const firstDay = addDays(today, -(HEATMAP_DAYS - 1));
+
+    return Array.from({ length: HEATMAP_DAYS }, (_, index) => {
+        const key = getDateKey(addDays(firstDay, index));
+        return getHeatmapLevel(totalsByDay.get(key) || 0);
+    });
+};
+
+const getCurrentStreakDays = (history: PlantingSessionHistoryItemDto[]) => {
+    const activeDays = new Set<string>();
+
+    history.forEach(item => {
+        const endDate = getSessionEndDate(item);
+        if (endDate) {
+            activeDays.add(getDateKey(endDate));
+        }
+    });
+
+    const today = startOfLocalDay(new Date());
+    const yesterday = addDays(today, -1);
+    let cursor: Date | null = null;
+
+    if (activeDays.has(getDateKey(today))) {
+        cursor = today;
+    } else if (activeDays.has(getDateKey(yesterday))) {
+        cursor = yesterday;
+    }
+
+    if (!cursor) {
+        return 0;
+    }
+
+    let streak = 0;
+    while (activeDays.has(getDateKey(cursor))) {
+        streak += 1;
+        cursor = addDays(cursor, -1);
+    }
+
+    return streak;
+};
+
+const loadAllHistory = async () => {
+    const history: PlantingSessionHistoryItemDto[] = [];
+    let skipCount = 0;
+    let totalCount = Number.POSITIVE_INFINITY;
+
+    while (history.length < totalCount) {
+        const page = await getPlantingSessionHistory({
+            skipCount,
+            maxResultCount: HISTORY_PAGE_SIZE,
+        });
+
+        history.push(...page.items);
+        totalCount = page.totalCount;
+        skipCount += page.items.length;
+
+        if (page.items.length === 0) {
+            break;
+        }
+    }
+
+    return history;
+};
+
+const formatNumber = (value: number) =>
+    Math.round(value).toLocaleString('en-US');
+
+const formatFocusHours = (seconds: number) => {
+    if (seconds <= 0) {
+        return '0 h';
+    }
+
+    const hours = seconds / 3600;
+    if (hours < 1) {
+        return '<1 h';
+    }
+
+    if (hours < 10) {
+        return `${Number(hours.toFixed(1)).toLocaleString('en-US')} h`;
+    }
+
+    return `${Math.round(hours).toLocaleString('en-US')} h`;
+};
+
+const formatStreak = (days: number) =>
+    `${days} ${days === 1 ? 'day' : 'days'}`;
 
 // ── Thẻ thống kê ──
 interface StatCardProps {
@@ -60,9 +241,26 @@ const StatCard: React.FC<StatCardProps> = ({ iconName, value, label }) => (
 // ── Heatmap (tự fill ngang) ──
 interface HeatmapProps {
     data: number[];
+    loading?: boolean;
 }
 
-const Heatmap: React.FC<HeatmapProps> = ({ data }) => {
+interface HeatmapCellProps {
+    level: number;
+    size: number;
+}
+
+const HeatmapCell: React.FC<HeatmapCellProps> = ({ level, size }) => {
+    const cellStyle = useMemo(() => ({
+        width: size,
+        height: size,
+        borderRadius: scale.s(2),
+        backgroundColor: level >= 0 ? HEATMAP_COLORS[level] : 'transparent',
+    }), [level, size]);
+
+    return <View style={cellStyle} />;
+};
+
+const Heatmap: React.FC<HeatmapProps> = ({ data, loading = false }) => {
     const containerPadding = scale.s(16);
     const marginH = scale.s(16);
     const screenWidth = Dimensions.get('window').width;
@@ -87,21 +285,17 @@ const Heatmap: React.FC<HeatmapProps> = ({ data }) => {
         <View style={[styles.heatmapContainer, { padding: containerPadding }]}>
             <View style={styles.heatmapHeader}>
                 <Text style={styles.heatmapTitle}>90 days heatmap</Text>
-                <FontAwesome name="info-circle" size={scale.ms(14)} color="#888" />
+                {loading ? (
+                    <ActivityIndicator size="small" color={GREEN_BG} />
+                ) : (
+                    <FontAwesome name="info-circle" size={scale.ms(14)} color="#888" />
+                )}
             </View>
             <View style={[styles.heatmapGrid, { gap }]}>
                 {grid.map((column, colIdx) => (
                     <View key={colIdx} style={{ gap }}>
                         {column.map((level, rowIdx) => (
-                            <View
-                                key={rowIdx}
-                                style={{
-                                    width: cellSize,
-                                    height: cellSize,
-                                    borderRadius: scale.s(2),
-                                    backgroundColor: level >= 0 ? HEATMAP_COLORS[level] : 'transparent',
-                                }}
-                            />
+                            <HeatmapCell key={rowIdx} level={level} size={cellSize} />
                         ))}
                     </View>
                 ))}
@@ -117,10 +311,62 @@ const ProfileScreen = () => {
     const { logout, userInfo, avatar, setAvatar } = useContext(AuthContext);
     const { isDark } = useTheme();
     const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
+    const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS);
+    const [statsLoading, setStatsLoading] = useState(true);
 
     const displayName = userInfo?.name || userInfo?.userName || 'Nguoi dung';
     const avatarSize = scale.s(80);
-    const heatmapData = useMemo(() => generateHeatmapData(), []);
+    const statValues = useMemo(() => ({
+        treesUnlocked: statsLoading ? '...' : formatNumber(profileStats.treesUnlocked),
+        coin: statsLoading ? '...' : `${formatNumber(profileStats.coin)} $`,
+        focusHours: statsLoading ? '...' : formatFocusHours(profileStats.focusSeconds),
+        streak: statsLoading ? '...' : formatStreak(profileStats.streakDays),
+    }), [profileStats, statsLoading]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadProfileStats = async () => {
+            setStatsLoading(true);
+
+            try {
+                const [wallet, treepedia, history] = await Promise.all([
+                    getMyWallet(),
+                    getTreepedia(),
+                    loadAllHistory(),
+                ]);
+
+                if (!isMounted) {
+                    return;
+                }
+
+                setProfileStats({
+                    treesUnlocked: treepedia.filter(entry => entry.isUnlocked).length,
+                    coin: wallet.coin,
+                    focusSeconds: history.reduce(
+                        (total, item) => total + getSessionDurationSeconds(item),
+                        0,
+                    ),
+                    streakDays: getCurrentStreakDays(history),
+                    heatmapData: buildHeatmapData(history),
+                });
+            } catch (error: any) {
+                if (isMounted) {
+                    Alert.alert('Cannot load profile', getErrorMessage(error, 'Please try again.'));
+                }
+            } finally {
+                if (isMounted) {
+                    setStatsLoading(false);
+                }
+            }
+        };
+
+        loadProfileStats();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     return (
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -163,17 +409,17 @@ const ProfileScreen = () => {
                     {/* Grid 2x2 - kéo lên lấn vào vùng xanh */}
                     <View style={[styles.statsGrid, { marginTop: -CARD_OVERLAP }]}>
                         <View style={styles.statsRow}>
-                            <StatCard iconName="tree" value="49" label="Trees unlocked" />
-                            <StatCard iconName="money" value="2,000 $" label="Coin" />
+                            <StatCard iconName="tree" value={statValues.treesUnlocked} label="Trees unlocked" />
+                            <StatCard iconName="money" value={statValues.coin} label="Coin" />
                         </View>
                         <View style={styles.statsRow}>
-                            <StatCard iconName="clock-o" value="1,024 h" label="Focus hours" />
-                            <StatCard iconName="fire" value="6 days" label="Streak" />
+                            <StatCard iconName="clock-o" value={statValues.focusHours} label="Focus hours" />
+                            <StatCard iconName="fire" value={statValues.streak} label="Streak" />
                         </View>
                     </View>
 
                     {/* Heatmap */}
-                    <Heatmap data={heatmapData} />
+                    <Heatmap data={profileStats.heatmapData} loading={statsLoading} />
                 </View>
             </ScrollView>
 
