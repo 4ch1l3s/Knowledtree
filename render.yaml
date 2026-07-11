@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: kairosgarden-staging
+    runtime: docker
+    plan: free
+    branch: Ground_Staging
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Staging
+      - key: App__SelfUrl
+        value: https://kairosgarden-staging.onrender.com
+      - key: App__CorsOrigins
+        value: https://kairosgarden-staging.onrender.com
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: StringEncryption__DefaultPassPhrase
+        generateValue: true
+      - key: OpenIddict__CertificateBase64
+        sync: false
+      - key: OpenIddict__CertificatePassword
+        sync: false

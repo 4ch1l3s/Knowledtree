@@ -2,12 +2,17 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Knowledtree.EntityFrameworkCore;
 using Knowledtree.Localization;
 using Knowledtree.MultiTenancy;
@@ -89,14 +94,18 @@ public class KnowledtreeWebModule : AbpModule
 
         if (!hostingEnvironment.IsDevelopment())
         {
+            ValidateRemoteConfiguration(configuration);
+
             PreConfigure<AbpOpenIddictAspNetCoreOptions>(options =>
             {
                 options.AddDevelopmentEncryptionAndSigningCertificate = false;
             });
 
+            var certificate = LoadOpenIddictCertificate(configuration);
             PreConfigure<OpenIddictServerBuilder>(serverBuilder =>
             {
-                serverBuilder.AddProductionEncryptionAndSigningCertificate("openiddict.pfx", "00000000-0000-0000-0000-000000000000");
+                serverBuilder.AddEncryptionCertificate(certificate);
+                serverBuilder.AddSigningCertificate(certificate);
             });
         }
 
@@ -123,6 +132,10 @@ public class KnowledtreeWebModule : AbpModule
         ConfigureNavigationServices();
         ConfigureAutoApiControllers();
         ConfigureSwaggerServices(context.Services);
+        ConfigureForwardedHeaders(context);
+        context.Services
+            .AddHealthChecks()
+            .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" });
     }
 
     private void ConfigureAuthentication(ServiceConfigurationContext context)
@@ -132,6 +145,54 @@ public class KnowledtreeWebModule : AbpModule
         {
             options.IsDynamicClaimsEnabled = true;
         });
+    }
+
+    private static void ConfigureForwardedHeaders(ServiceConfigurationContext context)
+    {
+        context.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+    }
+
+    private static void ValidateRemoteConfiguration(IConfiguration configuration)
+    {
+        GetRequiredConfiguration(configuration, "App:SelfUrl");
+        GetRequiredConfiguration(configuration, "App:CorsOrigins");
+        GetRequiredConfiguration(configuration, "ConnectionStrings:Default");
+        GetRequiredConfiguration(configuration, "StringEncryption:DefaultPassPhrase");
+        GetRequiredConfiguration(configuration, "OpenIddict:CertificateBase64");
+        GetRequiredConfiguration(configuration, "OpenIddict:CertificatePassword");
+    }
+
+    private static X509Certificate2 LoadOpenIddictCertificate(IConfiguration configuration)
+    {
+        try
+        {
+            return X509CertificateLoader.LoadPkcs12(
+                Convert.FromBase64String(GetRequiredConfiguration(configuration, "OpenIddict:CertificateBase64")),
+                GetRequiredConfiguration(configuration, "OpenIddict:CertificatePassword"),
+                X509KeyStorageFlags.EphemeralKeySet);
+        }
+        catch (Exception exception) when (exception is FormatException or CryptographicException)
+        {
+            throw new InvalidOperationException(
+                "OpenIddict certificate configuration is not a valid base64-encoded PKCS#12 certificate.",
+                exception);
+        }
+    }
+
+    private static string GetRequiredConfiguration(IConfiguration configuration, string key)
+    {
+        var value = configuration[key];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"Required configuration '{key}' is missing.");
+        }
+
+        return value;
     }
 
     private void ConfigureUrls(IConfiguration configuration)
@@ -253,6 +314,15 @@ public class KnowledtreeWebModule : AbpModule
         {
             app.UseDeveloperExceptionPage();
         }
+        else
+        {
+            app.UseForwardedHeaders();
+        }
+
+        app.UseHealthChecks("/health", new HealthCheckOptions
+        {
+            Predicate = registration => registration.Tags.Contains("live")
+        });
 
         app.UseAbpRequestLocalization();
 

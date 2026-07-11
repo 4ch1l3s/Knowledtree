@@ -253,6 +253,7 @@ paket-files/
 
 # Knowledtree
 **/appsettings.secrets.json
+.render/
 src/Knowledtree.Web/Logs/*
 src/Knowledtree.Web.Host/Logs/*
 src/Knowledtree.AuthServer/Logs/*

@@ -2,7 +2,11 @@
   "version": "1.0.0",
   "name": "my-app",
   "private": true,
+  "packageManager": "yarn@1.22.22",
   "dependencies": {
     "@abp/aspnetcore.mvc.ui.theme.leptonxlite": "~4.0.5"
+  },
+  "resolutions": {
+    "select2": "4.0.13"
   }
 }
