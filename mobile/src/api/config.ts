@@ -1,5 +1,3 @@
-import { Platform } from 'react-native';
-
 // Kairos Garden backend chạy ở port 5000 (HTTP)
 const API_PORT = 5000;
 

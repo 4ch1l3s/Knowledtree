@@ -291,3 +291,13 @@ ios/*.xcodeproj/xcuserdata/
 # Logs
 logs.txt
 temp_logs.txt
+
+# Others
+*codex
+*codex_work
+*codex-temp
+*.codex-tmp
+*codex_tmp
+*agents
+*.agents
+*.render

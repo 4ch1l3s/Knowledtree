@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Theme, lightTheme, darkTheme } from './theme';
+import { Theme, lightTheme } from './theme';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -21,7 +21,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const systemScheme = useColorScheme();
     const [themeMode, setThemeModeState] = useState<ThemeMode>('auto');
 
-    const resolveTheme = (mode: ThemeMode): Theme => {
+    const resolveTheme = (_mode: ThemeMode): Theme => {
         // Tạm thời vô hiệu hoá dark mode theo yêu cầu, luôn trả về lightTheme
         return lightTheme;
     };

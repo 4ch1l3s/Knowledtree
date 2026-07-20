@@ -14,9 +14,15 @@ import ImageCropPicker from 'react-native-image-crop-picker';
 import { useTheme } from '../theme';
 import { uploadMyAvatar, UserAvatarDto } from '../api/avatar';
 import { scale } from '../utils/scale';
+import { useLocalization } from '../localization';
 
 /** Xin quyền truy cập thư viện ảnh trên Android (runtime permission) */
-const requestGalleryPermission = async (): Promise<boolean> => {
+const requestGalleryPermission = async (copy: {
+    title: string;
+    message: string;
+    allow: string;
+    deny: string;
+}): Promise<boolean> => {
     if (Platform.OS !== 'android') return true;
 
     const permission =
@@ -25,10 +31,10 @@ const requestGalleryPermission = async (): Promise<boolean> => {
             : PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE;
 
     const status = await PermissionsAndroid.request(permission, {
-        title: 'Quyền truy cập thư viện ảnh',
-        message: 'Ứng dụng cần quyền truy cập ảnh để chọn ảnh đại diện.',
-        buttonPositive: 'Đồng ý',
-        buttonNegative: 'Từ chối',
+        title: copy.title,
+        message: copy.message,
+        buttonPositive: copy.allow,
+        buttonNegative: copy.deny,
     });
 
     return status === PermissionsAndroid.RESULTS.GRANTED;
@@ -52,6 +58,7 @@ const AvatarPicker: React.FC<AvatarPickerProps> = ({
     onAvatarChanged,
 }) => {
     const { theme } = useTheme();
+    const { t } = useLocalization();
     const [isUploading, setIsUploading] = useState(false);
 
     const avatarSize = size ?? scale.s(80);
@@ -59,11 +66,16 @@ const AvatarPicker: React.FC<AvatarPickerProps> = ({
 
     const handlePickImage = async () => {
         // Xin quyền truy cập thư viện ảnh trước khi mở picker
-        const hasPermission = await requestGalleryPermission();
+        const hasPermission = await requestGalleryPermission({
+            title: t('avatar.permissionTitle'),
+            message: t('avatar.permissionMessage'),
+            allow: t('avatar.allow'),
+            deny: t('avatar.deny'),
+        });
         if (!hasPermission) {
             Alert.alert(
-                'Không có quyền',
-                'Vui lòng cấp quyền truy cập thư viện ảnh trong Cài đặt để chọn ảnh đại diện.'
+                t('avatar.permissionTitle'),
+                t('avatar.permissionMessage'),
             );
             return;
         }
@@ -89,8 +101,8 @@ const AvatarPicker: React.FC<AvatarPickerProps> = ({
                 onAvatarChanged(result);
             } catch (uploadError) {
                 Alert.alert(
-                    'Lỗi',
-                    'Không thể upload ảnh đại diện. Vui lòng thử lại.'
+                    t('common.error'),
+                    t('avatar.uploadError'),
                 );
                 console.error('Avatar upload failed:', uploadError);
             } finally {
@@ -101,7 +113,7 @@ const AvatarPicker: React.FC<AvatarPickerProps> = ({
             if (pickerError?.code === 'E_PICKER_CANCELLED') {
                 return;
             }
-            Alert.alert('Lỗi', 'Không thể mở thư viện ảnh.');
+            Alert.alert(t('common.error'), t('avatar.openError'));
             console.error('Image picker error:', pickerError);
         }
     };
@@ -167,7 +179,7 @@ const AvatarPicker: React.FC<AvatarPickerProps> = ({
                 {/* Overlay "Sửa" khi không đang upload */}
                 {!isUploading && (
                     <View style={overlayStyle}>
-                        <Text style={overlayTextStyle}>Sửa</Text>
+                        <Text style={overlayTextStyle}>{t('avatar.edit')}</Text>
                     </View>
                 )}
             </View>

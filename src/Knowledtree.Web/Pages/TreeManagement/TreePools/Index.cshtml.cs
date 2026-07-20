@@ -167,21 +167,21 @@ public class IndexModel : KnowledtreePageModel
         {
             ModelState.AddModelError(
                 $"{prefix}.{nameof(input.CommonRate)}",
-                "Common, Rare, and Gold rates must total exactly 100%.");
+                L["Web:RatesTotalError"]);
         }
 
         if (input.StartTime.HasValue && input.EndTime.HasValue && input.StartTime.Value > input.EndTime.Value)
         {
             ModelState.AddModelError(
                 $"{prefix}.{nameof(input.EndTime)}",
-                "End time must be after start time.");
+                L["Web:EndAfterStartError"]);
         }
 
         var selectedTreeIds = treeIds.Distinct().ToHashSet();
         var selectedTrees = Trees.Where(x => selectedTreeIds.Contains(x.Id)).ToList();
         if (selectedTrees.Count != selectedTreeIds.Count)
         {
-            ModelState.AddModelError(string.Empty, "One or more selected trees no longer exist.");
+            ModelState.AddModelError(string.Empty, L["Web:SelectedTreesMissingError"]);
         }
 
         if (!input.IsActive)
@@ -207,7 +207,7 @@ public class IndexModel : KnowledtreePageModel
 
         ModelState.AddModelError(
             string.Empty,
-            $"Active treepools require at least one {rarity} tree when the {rarity} rate is greater than 0%.");
+            L["Web:MissingRarityError", L[$"TreeRarity:{rarity}"]]);
     }
 
     private void AddExceptionToModelState(Exception exception)
@@ -215,20 +215,20 @@ public class IndexModel : KnowledtreePageModel
         ModelState.AddModelError(string.Empty, GetDisplayErrorMessage(exception));
     }
 
-    private static string GetDisplayErrorMessage(Exception exception)
+    private string GetDisplayErrorMessage(Exception exception)
     {
         if (exception is BusinessException businessException)
         {
             return businessException.Code switch
             {
                 KnowledtreeDomainErrorCodes.InvalidTreePoolRates =>
-                    "Common, Rare, and Gold rates must total exactly 100%.",
+                    L["Web:RatesTotalError"],
                 KnowledtreeDomainErrorCodes.InvalidTreePoolDateRange =>
-                    "End time must be after start time.",
+                    L["Web:EndAfterStartError"],
                 KnowledtreeDomainErrorCodes.TreePoolMissingRarityItems =>
-                    "Active treepools must contain at least one tree for every rarity with a rate greater than 0%.",
+                    L["Web:AllRaritiesRequiredError"],
                 KnowledtreeDomainErrorCodes.ReferencedTreePoolCannotBeDeleted =>
-                    "This treepool is already referenced and cannot be deleted.",
+                    L["Web:TreePoolReferencedError"],
                 _ => businessException.Message
             };
         }

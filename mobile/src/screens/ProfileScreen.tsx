@@ -23,6 +23,7 @@ import {
     PlantingSessionHistoryItemDto,
     getPlantingSessionHistory,
 } from '../api/plantingSessions';
+import { AppLanguage, useLocalization } from '../localization';
 
 // ── Màu từ Figma ──
 const GREEN_BG = '#568259';
@@ -200,28 +201,30 @@ const loadAllHistory = async () => {
     return history;
 };
 
-const formatNumber = (value: number) =>
-    Math.round(value).toLocaleString('en-US');
+const getLocale = (language: AppLanguage) => language === 'vi' ? 'vi-VN' : 'en-US';
 
-const formatFocusHours = (seconds: number) => {
+const formatNumber = (value: number, language: AppLanguage) =>
+    Math.round(value).toLocaleString(getLocale(language));
+
+const formatFocusHours = (seconds: number, language: AppLanguage, hourUnit: string) => {
     if (seconds <= 0) {
-        return '0 h';
+        return `0 ${hourUnit}`;
     }
 
     const hours = seconds / 3600;
     if (hours < 1) {
-        return '<1 h';
+        return `<1 ${hourUnit}`;
     }
 
     if (hours < 10) {
-        return `${Number(hours.toFixed(1)).toLocaleString('en-US')} h`;
+        return `${Number(hours.toFixed(1)).toLocaleString(getLocale(language))} ${hourUnit}`;
     }
 
-    return `${Math.round(hours).toLocaleString('en-US')} h`;
+    return `${Math.round(hours).toLocaleString(getLocale(language))} ${hourUnit}`;
 };
 
-const formatStreak = (days: number) =>
-    `${days} ${days === 1 ? 'day' : 'days'}`;
+const formatStreak = (days: number, dayLabel: string, daysLabel: string) =>
+    `${days} ${days === 1 ? dayLabel : daysLabel}`;
 
 // ── Thẻ thống kê ──
 interface StatCardProps {
@@ -261,6 +264,7 @@ const HeatmapCell: React.FC<HeatmapCellProps> = ({ level, size }) => {
 };
 
 const Heatmap: React.FC<HeatmapProps> = ({ data, loading = false }) => {
+    const { t } = useLocalization();
     const containerPadding = scale.s(16);
     const marginH = scale.s(16);
     const screenWidth = Dimensions.get('window').width;
@@ -284,7 +288,7 @@ const Heatmap: React.FC<HeatmapProps> = ({ data, loading = false }) => {
     return (
         <View style={[styles.heatmapContainer, { padding: containerPadding }]}>
             <View style={styles.heatmapHeader}>
-                <Text style={styles.heatmapTitle}>90 days heatmap</Text>
+                <Text style={styles.heatmapTitle}>{t('profile.heatmap')}</Text>
                 {loading ? (
                     <ActivityIndicator size="small" color={GREEN_BG} />
                 ) : (
@@ -310,18 +314,19 @@ const CARD_OVERLAP = scale.vs(35);
 const ProfileScreen = () => {
     const { logout, userInfo, avatar, setAvatar } = useContext(AuthContext);
     const { isDark } = useTheme();
+    const { language, t } = useLocalization();
     const [isDrawerOpen, setIsDrawerOpen] = React.useState(false);
     const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS);
     const [statsLoading, setStatsLoading] = useState(true);
 
-    const displayName = userInfo?.name || userInfo?.userName || 'Nguoi dung';
+    const displayName = userInfo?.name || userInfo?.userName || t('common.user');
     const avatarSize = scale.s(80);
     const statValues = useMemo(() => ({
-        treesUnlocked: statsLoading ? '...' : formatNumber(profileStats.treesUnlocked),
-        coin: statsLoading ? '...' : `${formatNumber(profileStats.coin)} $`,
-        focusHours: statsLoading ? '...' : formatFocusHours(profileStats.focusSeconds),
-        streak: statsLoading ? '...' : formatStreak(profileStats.streakDays),
-    }), [profileStats, statsLoading]);
+        treesUnlocked: statsLoading ? '...' : formatNumber(profileStats.treesUnlocked, language),
+        coin: statsLoading ? '...' : `${formatNumber(profileStats.coin, language)}`,
+        focusHours: statsLoading ? '...' : formatFocusHours(profileStats.focusSeconds, language, t('profile.hourShort')),
+        streak: statsLoading ? '...' : formatStreak(profileStats.streakDays, t('profile.day'), t('profile.days')),
+    }), [language, profileStats, statsLoading, t]);
 
     useEffect(() => {
         let isMounted = true;
@@ -352,7 +357,7 @@ const ProfileScreen = () => {
                 });
             } catch (error: any) {
                 if (isMounted) {
-                    Alert.alert('Cannot load profile', getErrorMessage(error, 'Please try again.'));
+                    Alert.alert(t('profile.loadErrorTitle'), getErrorMessage(error, t('grow.tryAgain')));
                 }
             } finally {
                 if (isMounted) {
@@ -366,7 +371,7 @@ const ProfileScreen = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [t]);
 
     return (
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -380,7 +385,7 @@ const ProfileScreen = () => {
                 >
                     <FontAwesome name="navicon" size={scale.ms(20)} color={HEADER_TEXT} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Profile</Text>
+                <Text style={styles.headerTitle}>{t('nav.profile')}</Text>
                 <View style={styles.menuButton} />
             </View>
 
@@ -409,12 +414,12 @@ const ProfileScreen = () => {
                     {/* Grid 2x2 - kéo lên lấn vào vùng xanh */}
                     <View style={[styles.statsGrid, { marginTop: -CARD_OVERLAP }]}>
                         <View style={styles.statsRow}>
-                            <StatCard iconName="tree" value={statValues.treesUnlocked} label="Trees unlocked" />
-                            <StatCard iconName="money" value={statValues.coin} label="Coin" />
+                            <StatCard iconName="tree" value={statValues.treesUnlocked} label={t('profile.treesUnlocked')} />
+                            <StatCard iconName="money" value={statValues.coin} label={t('profile.coin')} />
                         </View>
                         <View style={styles.statsRow}>
-                            <StatCard iconName="clock-o" value={statValues.focusHours} label="Focus hours" />
-                            <StatCard iconName="fire" value={statValues.streak} label="Streak" />
+                            <StatCard iconName="clock-o" value={statValues.focusHours} label={t('profile.focusHours')} />
+                            <StatCard iconName="fire" value={statValues.streak} label={t('profile.streak')} />
                         </View>
                     </View>
 

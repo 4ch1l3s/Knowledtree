@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useContext, useState } from 'react';
-import { View, Text, Image, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, Image, Modal, TouchableOpacity, Animated, Dimensions, StyleSheet, TouchableWithoutFeedback, ScrollView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { AuthContext } from '../context/AuthContext';
+import { useLocalization } from '../localization';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.82; // Adjusting to exactly match the proportion in Figma
@@ -20,12 +21,13 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
     const navigation = useNavigation<any>();
     const route = useRoute();
     const { userInfo, avatar } = useContext(AuthContext);
+    const { t } = useLocalization();
     const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const [modalVisible, setModalVisible] = useState(isVisible);
 
     // Use user's real name or fallback
-    const displayName = userInfo?.name || userInfo?.userName || 'User';
+    const displayName = userInfo?.name || userInfo?.userName || t('common.user');
     const initials = displayName.charAt(0).toUpperCase();
 
     useEffect(() => {
@@ -76,7 +78,10 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                         transform: [{ translateX: slideAnim }]
                     }
                 ]}>
-                    <View style={styles.scrollContainer}>
+                    <ScrollView
+                        style={styles.scrollContainer}
+                        showsVerticalScrollIndicator
+                    >
                         {/* ── Banner ── */}
                         <View style={[styles.banner, { backgroundColor: '#638A63' }]} />
 
@@ -106,7 +111,7 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('Profile'); }}
                             >
                                 <FontAwesome name="user-o" size={scale.ms(16)} color={route.name === 'Profile' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'Profile' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Profile' ? 'bold' : '500' }]}>Profile</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'Profile' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Profile' ? 'bold' : '500' }]}>{t('nav.profile')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -114,7 +119,7 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('GrowTree'); }}
                             >
                                 <FontAwesome name="tree" size={scale.ms(16)} color={route.name === 'GrowTree' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'GrowTree' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'GrowTree' ? 'bold' : '500' }]}>Grow a tree</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'GrowTree' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'GrowTree' ? 'bold' : '500' }]}>{t('nav.growTree')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -122,7 +127,7 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('Treepedia'); }}
                             >
                                 <FontAwesome name="book" size={scale.ms(16)} color={route.name === 'Treepedia' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'Treepedia' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Treepedia' ? 'bold' : '500' }]}>Treepedia</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'Treepedia' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Treepedia' ? 'bold' : '500' }]}>{t('nav.treepedia')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -130,7 +135,7 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('Shop'); }}
                             >
                                 <FontAwesome name="shopping-bag" size={scale.ms(16)} color={route.name === 'Shop' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'Shop' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Shop' ? 'bold' : '500' }]}>Shop</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'Shop' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Shop' ? 'bold' : '500' }]}>{t('nav.shop')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -138,7 +143,7 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('Friend'); }}
                             >
                                 <FontAwesome name="users" size={scale.ms(16)} color={route.name === 'Friend' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'Friend' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Friend' ? 'bold' : '500' }]}>Friend</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'Friend' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Friend' ? 'bold' : '500' }]}>{t('nav.friends')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -146,7 +151,7 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('History'); }}
                             >
                                 <FontAwesome name="history" size={scale.ms(16)} color={route.name === 'History' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'History' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'History' ? 'bold' : '500' }]}>Timeline</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'History' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'History' ? 'bold' : '500' }]}>{t('nav.history')}</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -154,27 +159,30 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                                 onPress={() => { onClose(); navigation.navigate('Tags'); }}
                             >
                                 <FontAwesome name="tag" size={scale.ms(16)} color={route.name === 'Tags' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: route.name === 'Tags' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Tags' ? 'bold' : '500' }]}>Tags</Text>
+                                <Text style={[styles.menuText, { color: route.name === 'Tags' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Tags' ? 'bold' : '500' }]}>{t('nav.tags')}</Text>
                             </TouchableOpacity>
 
                             {/* Divider line */}
                             <View style={styles.divider} />
 
-                            <Text style={styles.sectionHeader}>SETTINGS & ACCOUNT</Text>
+                            <Text style={styles.sectionHeader}>{t('nav.settingsAndAccount')}</Text>
 
-                            <TouchableOpacity style={styles.menuItem} onPress={onClose}>
-                                <FontAwesome name="cog" size={scale.ms(16)} color="#4A5A4D" style={styles.menuIcon} />
-                                <Text style={[styles.menuText, { color: '#4A5A4D' }]}>Config</Text>
+                            <TouchableOpacity
+                                style={[styles.menuItem, route.name === 'Settings' && { backgroundColor: '#DDFBEA' }]}
+                                onPress={() => { onClose(); navigation.navigate('Settings'); }}
+                            >
+                                <FontAwesome name="cog" size={scale.ms(16)} color={route.name === 'Settings' ? '#157A42' : '#4A5A4D'} style={styles.menuIcon} />
+                                <Text style={[styles.menuText, { color: route.name === 'Settings' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'Settings' ? 'bold' : '500' }]}>{t('nav.settings')}</Text>
                             </TouchableOpacity>
 
                             {onLogout && (
                                 <TouchableOpacity style={styles.menuItem} onPress={() => { onClose(); onLogout(); }}>
                                     <FontAwesome name="sign-out" size={scale.ms(16)} color="#4A5A4D" style={styles.menuIcon} />
-                                    <Text style={[styles.menuText, { color: '#4A5A4D' }]}>Sign out</Text>
+                                    <Text style={[styles.menuText, { color: '#4A5A4D' }]}>{t('nav.signOut')}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
-                    </View>
+                    </ScrollView>
 
                     {/* ── Footer ── */}
                     <View style={[styles.footer, { backgroundColor: '#EEF6EC' }]}>

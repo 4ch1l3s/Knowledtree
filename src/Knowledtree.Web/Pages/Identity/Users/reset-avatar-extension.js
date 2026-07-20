@@ -1,11 +1,12 @@
 (function () {
     'use strict';
+    var l = abp.localization.getResource('Knowledtree');
 
     var resetAvatarAction = {
-        text: 'Reset Avatar',
+        text: l('Web:ResetAvatar'),
         icon: 'fas fa-user-slash',
         confirmMessage: function (data) {
-            return 'Bạn có chắc chắn muốn xóa ảnh đại diện của "' + data.record.userName + '"?';
+            return l('Web:ResetAvatarConfirm', data.record.userName);
         },
         action: function (data) {
             var userId = data.record.id;
@@ -15,24 +16,24 @@
                 type: 'DELETE'
             }).then(function () {
                 abp.notify.success(
-                    'Đã xóa ảnh đại diện của "' + data.record.userName + '".',
-                    'Reset Avatar'
+                    l('Web:AvatarResetSuccess', data.record.userName),
+                    l('Web:ResetAvatar')
                 );
             }).catch(function (error) {
                 if (error && error.status === 404) {
                     abp.notify.warn(
-                        'Người dùng "' + data.record.userName + '" chưa có ảnh đại diện.',
-                        'Reset Avatar'
+                        l('Web:AvatarNotFound', data.record.userName),
+                        l('Web:ResetAvatar')
                     );
                 } else if (error && error.status === 403) {
                     abp.notify.error(
-                        'Bạn không có quyền xóa ảnh đại diện.',
-                        'Reset Avatar'
+                        l('Web:AvatarDeleteForbidden'),
+                        l('Web:ResetAvatar')
                     );
                 } else {
                     abp.notify.error(
-                        'Đã xảy ra lỗi khi xóa ảnh đại diện. Vui lòng thử lại.',
-                        'Reset Avatar'
+                        l('Web:AvatarDeleteError'),
+                        l('Web:ResetAvatar')
                     );
                 }
             });

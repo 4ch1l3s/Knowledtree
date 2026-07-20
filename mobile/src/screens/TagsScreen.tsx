@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,14 +9,12 @@ import {
     StyleSheet,
     ActivityIndicator,
     Alert,
-    TextStyle,
     Pressable,
 } from 'react-native';
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
 import AppLayout from '../components/AppLayout';
 import Icon from 'react-native-vector-icons/Feather';
-import { AuthContext } from '../context/AuthContext';
 import {
     TagDto,
     getMyTags,
@@ -24,6 +22,7 @@ import {
     updateTag,
     deleteTag,
 } from '../api/tags';
+import { useLocalization } from '../localization';
 
 // Mau sac co dinh cho color picker (theo thiet ke)
 const TAG_COLORS = [
@@ -40,7 +39,7 @@ const TAG_COLORS = [
 
 const TagsScreen = () => {
     const { theme } = useTheme();
-    const { userToken } = useContext(AuthContext);
+    const { t } = useLocalization();
 
     // State
     const [tags, setTags] = useState<TagDto[]>([]);
@@ -117,7 +116,7 @@ const TagsScreen = () => {
             resetForm();
             await loadTags();
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant create tag');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('tags.createError'));
         } finally {
             setSubmitting(false);
         }
@@ -133,7 +132,7 @@ const TagsScreen = () => {
             resetForm();
             await loadTags();
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant update tag');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('tags.updateError'));
         } finally {
             setSubmitting(false);
         }
@@ -143,19 +142,19 @@ const TagsScreen = () => {
     const handleDelete = (tag: TagDto) => {
         setShowMenuId(null);
         Alert.alert(
-            'Delete tag',
-            `Are you sure you want to delete "${tag.name}"?`,
+            t('tags.deleteTitle'),
+            t('tags.deleteConfirm', { name: tag.name }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('common.delete'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await deleteTag(tag.id);
                             await loadTags();
-                        } catch (error: any) {
-                            Alert.alert('Error', 'Cant delete tag');
+                        } catch {
+                            Alert.alert(t('common.error'), t('tags.deleteError'));
                         }
                     },
                 },
@@ -202,10 +201,10 @@ const TagsScreen = () => {
             {showMenuId === item.id && (
                 <View style={[styles.popupMenu, { backgroundColor: theme.colors.surface }]}>
                     <TouchableOpacity style={styles.popupItem} onPress={() => openEdit(item)}>
-                        <Text style={styles.popupText}>Edit</Text>
+                        <Text style={styles.popupText}>{t('common.edit')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.popupItem} onPress={() => handleDelete(item)}>
-                        <Text style={[styles.popupText, { color: '#E85D5D' }]}>Delete</Text>
+                        <Text style={[styles.popupText, { color: '#E85D5D' }]}>{t('common.delete')}</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -218,14 +217,14 @@ const TagsScreen = () => {
     };
 
     return (
-        <AppLayout title="Tags" iconPosition="left">
+        <AppLayout title={t('nav.tags')} iconPosition="left">
             <Pressable style={styles.container} onPress={dismissMenu}>
                 {/* Search bar */}
                 <View style={[styles.searchContainer, { backgroundColor: '#EEF6EC' }]}>
                     <Icon name="search" style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Search existing tags..."
+                        placeholder={t('tags.searchPlaceholder')}
                         placeholderTextColor="#AAAAAA"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -234,9 +233,9 @@ const TagsScreen = () => {
 
                 {/* Header danh sach */}
                 <View style={styles.listHeader}>
-                    <Text style={[styles.listTitle, { color: theme.colors.text }]}>Your Tags</Text>
+                    <Text style={[styles.listTitle, { color: theme.colors.text }]}>{t('tags.yourTags')}</Text>
                     <Text style={[styles.listCount, { color: theme.colors.textSecondary }]}>
-                        {filteredTags.length} Tags found
+                        {t('tags.found', { count: filteredTags.length })}
                     </Text>
                 </View>
 
@@ -285,14 +284,14 @@ const TagsScreen = () => {
                         <View style={styles.modalHandle} />
 
                         <Text style={styles.modalTitle}>
-                            {editingTag ? 'Edit Tag' : 'Create New Tag'}
+                            {t(editingTag ? 'tags.editTitle' : 'tags.createTitle')}
                         </Text>
 
                         {/* Input ten tag */}
-                        <Text style={styles.inputLabel}>Enter tag name</Text>
+                        <Text style={styles.inputLabel}>{t('tags.nameLabel')}</Text>
                         <TextInput
                             style={styles.modalInput}
-                            placeholder="e.g. Fragile"
+                            placeholder={t('tags.example')}
                             placeholderTextColor="#AAAAAA"
                             value={formName}
                             onChangeText={setFormName}
@@ -301,7 +300,7 @@ const TagsScreen = () => {
                         />
 
                         {/* Color picker */}
-                        <Text style={styles.inputLabel}>Select Color</Text>
+                        <Text style={styles.inputLabel}>{t('tags.selectColor')}</Text>
                         <View style={styles.colorGrid}>
                             {TAG_COLORS.map((color) => (
                                 <TouchableOpacity
@@ -331,7 +330,7 @@ const TagsScreen = () => {
                                 <ActivityIndicator color="#FFFFFF" />
                             ) : (
                                 <Text style={styles.createButtonText}>
-                                    {editingTag ? 'Update Tag' : 'Create Tag'}
+                                    {t(editingTag ? 'tags.update' : 'tags.create')}
                                 </Text>
                             )}
                         </TouchableOpacity>

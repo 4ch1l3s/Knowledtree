@@ -114,11 +114,11 @@
     <abp-card-header>
         <div class="d-flex align-items-center justify-content-between">
             <div>
-                <h2 class="mb-1">Treepools</h2>
-                <p class="text-muted mb-0">Configure seed packages, rarity rates, availability windows, and pool contents.</p>
+                <h2 class="mb-1">@L["Menu:TreePools"]</h2>
+                <p class="text-muted mb-0">@L["Web:TreePoolsSubtitle"]</p>
             </div>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createTreePoolModal">
-                <i class="fa fa-plus me-1"></i> New Treepool
+                <i class="fa fa-plus me-1"></i> @L["Web:NewTreePool"]
             </button>
         </div>
     </abp-card-header>
@@ -133,8 +133,8 @@
         @if (Model.Trees.Count == 0)
         {
             <div class="alert alert-warning">
-                Create at least one tree before activating a treepool.
-                <a href="/TreeManagement/Trees" class="alert-link">Go to Trees</a>
+                @L["Web:NoTreesWarning"]
+                <a href="/TreeManagement/Trees" class="alert-link">@L["Web:GoToTrees"]</a>
             </div>
         }
 
@@ -142,7 +142,7 @@
         {
             <div class="text-center text-muted py-5">
                 <i class="fa fa-seedling fa-3x mb-3"></i>
-                <div>No treepools have been created yet.</div>
+                <div>@L["Web:NoTreePools"]</div>
             </div>
         }
         else
@@ -160,13 +160,13 @@
                     </colgroup>
                     <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Cost</th>
-                        <th>Rates</th>
-                        <th>Window</th>
-                        <th>Trees</th>
-                        <th>Status</th>
-                        <th class="text-end">Actions</th>
+                        <th>@L["Name"]</th>
+                        <th>@L["Cost"]</th>
+                        <th>@L["Web:Rates"]</th>
+                        <th>@L["Web:Window"]</th>
+                        <th>@L["Web:Trees"]</th>
+                        <th>@L["Web:Status"]</th>
+                        <th class="text-end">@L["Actions"]</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -175,32 +175,32 @@
                         <tr>
                             <td>
                                 <div class="fw-semibold">@pool.Name</div>
-                                <div class="text-muted small">@pool.PoolType @(string.IsNullOrEmpty(pool.PackageImageKey) ? "" : $" | Image: {pool.PackageImageKey}")</div>
+                                <div class="text-muted small">@L[$"TreePoolType:{pool.PoolType}"] @(string.IsNullOrEmpty(pool.PackageImageKey) ? "" : $" | {L["ImageKey"]}: {pool.PackageImageKey}")</div>
                             </td>
                             <td>
                                 <span class="fw-semibold">@pool.Cost</span>
-                                <span class="text-muted">@pool.CurrencyType</span>
+                                <span class="text-muted">@L[$"CurrencyType:{pool.CurrencyType}"]</span>
                             </td>
                             <td>
-                                <div class="small">Common: @pool.CommonRate%</div>
-                                <div class="small">Rare: @pool.RareRate%</div>
-                                <div class="small">Gold: @pool.GoldRate%</div>
+                                <div class="small">@L["Web:Common"]: @pool.CommonRate%</div>
+                                <div class="small">@L["Web:Rare"]: @pool.RareRate%</div>
+                                <div class="small">@L["Web:Gold"]: @pool.GoldRate%</div>
                             </td>
                             <td>
-                                <div class="small">Start: @(pool.StartTime?.ToString("g") ?? "Always")</div>
-                                <div class="small">End: @(pool.EndTime?.ToString("g") ?? "Never")</div>
+                                <div class="small">@L["Web:Start"]: @(pool.StartTime?.ToString("g") ?? L["Web:Always"].Value)</div>
+                                <div class="small">@L["Web:End"]: @(pool.EndTime?.ToString("g") ?? L["Web:Never"].Value)</div>
                             </td>
                             <td>
                                 @if (pool.Trees.Count == 0)
                                 {
-                                    <span class="text-muted small">No trees</span>
+                                    <span class="text-muted small">@L["Web:NoTreesShort"]</span>
                                 }
                                 else
                                 {
                                     <div class="kt-tree-chip-list">
                                     @foreach (var tree in pool.Trees)
                                     {
-                                        <span class="kt-rarity-badge kt-tree-chip @TreeRarityDisplay.GetCssClass(tree.Rarity)" title="@tree.Name (@TreeRarityDisplay.GetLabel(tree.Rarity))">@tree.Name (@TreeRarityDisplay.GetLabel(tree.Rarity))</span>
+                                        <span class="kt-rarity-badge kt-tree-chip @TreeRarityDisplay.GetCssClass(tree.Rarity)" title="@tree.Name (@L[$"TreeRarity:{tree.Rarity}"])">@tree.Name (@L[$"TreeRarity:{tree.Rarity}"])</span>
                                     }
                                     </div>
                                 }
@@ -208,21 +208,21 @@
                             <td>
                                 @if (pool.IsActive)
                                 {
-                                    <span class="kt-status-badge kt-status-active">Active</span>
+                                    <span class="kt-status-badge kt-status-active">@L["Active"]</span>
                                 }
                                 else
                                 {
-                                    <span class="kt-status-badge kt-status-inactive">Inactive</span>
+                                    <span class="kt-status-badge kt-status-inactive">@L["Inactive"]</span>
                                 }
                             </td>
                             <td>
                                 <div class="kt-actions">
                                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editTreePoolModal-@pool.Id">
-                                    <i class="fa fa-edit me-1"></i> Edit
+                                    <i class="fa fa-edit me-1"></i> @L["Edit"]
                                 </button>
                                 <form method="post" asp-page-handler="Delete" asp-route-id="@pool.Id">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this treepool?');">
-                                        <i class="fa fa-trash me-1"></i> Delete
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('@L["Web:DeleteTreePoolConfirm"]');">
+                                        <i class="fa fa-trash me-1"></i> @L["Delete"]
                                     </button>
                                 </form>
                                 </div>
@@ -241,8 +241,8 @@
         <div class="modal-content">
             <form method="post" asp-page-handler="Create" data-treepool-form="true">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="createTreePoolModalLabel">New Treepool</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="createTreePoolModalLabel">@L["Web:NewTreePool"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@L["Close"]"></button>
                 </div>
                 <div class="modal-body">
                     @if (Model.OpenModalId == "createTreePoolModal")
@@ -262,8 +262,8 @@
                     })" />
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                    <button type="submit" class="btn btn-primary">@L["Create"]</button>
                 </div>
             </form>
         </div>
@@ -277,8 +277,8 @@
             <div class="modal-content">
                 <form method="post" asp-page-handler="Update" asp-route-id="@pool.Id" data-treepool-form="true">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="editTreePoolModalLabel-@pool.Id">Edit Treepool</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title" id="editTreePoolModalLabel-@pool.Id">@L["Web:EditTreePool"]</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@L["Close"]"></button>
                     </div>
                     <div class="modal-body">
                         @if (Model.OpenModalId == $"editTreePoolModal-{pool.Id}")
@@ -298,8 +298,8 @@
                         })" />
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                        <button type="submit" class="btn btn-primary">@L["Save"]</button>
                     </div>
                 </form>
             </div>
@@ -349,18 +349,18 @@
                 let message = '';
 
                 if (Math.abs(totalRate - 100) > 0.001) {
-                    message = 'Common, Rare, and Gold rates must total exactly 100%.';
+                    message = '@L["Web:RatesTotalError"]';
                 } else {
                     const activeInput = form.querySelector('[data-active-input="true"]');
                     const isActive = !!activeInput?.checked;
                     if (isActive) {
                         const selectedRarities = getSelectedRarities();
                         if (commonRate > 0 && !selectedRarities.includes('Common')) {
-                            message = 'Active treepools require at least one Common tree.';
+                            message = '@L["Web:MissingRarityError", L["TreeRarity:Common"]]';
                         } else if (rareRate > 0 && !selectedRarities.includes('Rare')) {
-                            message = 'Active treepools require at least one Rare tree.';
+                            message = '@L["Web:MissingRarityError", L["TreeRarity:Rare"]]';
                         } else if (goldRate > 0 && !selectedRarities.includes('Gold')) {
-                            message = 'Active treepools require at least one Gold tree.';
+                            message = '@L["Web:MissingRarityError", L["TreeRarity:Gold"]]';
                         }
                     }
                 }

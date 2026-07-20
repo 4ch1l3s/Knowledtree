@@ -6,8 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { AuthContext } from '../context/AuthContext';
-import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
+import { useLocalization } from '../localization';
 
 const LoginScreen = () => {
     const [username, setUsername] = useState('');
@@ -17,7 +17,7 @@ const LoginScreen = () => {
     const [error, setError] = useState<string | null>(null);
 
     const { login } = useContext(AuthContext);
-    const { theme } = useTheme();
+    const { t } = useLocalization();
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
     const handleLogin = async () => {
@@ -26,7 +26,7 @@ const LoginScreen = () => {
         try {
             await login(username, password);
         } catch (e: any) {
-            const errorMessage = e.response?.data?.error_description || e.message || 'Lỗi không xác định';
+            const errorMessage = e.response?.data?.error_description || e.message || t('common.unknownError');
             setError(errorMessage);
         } finally {
             setIsSubmitting(false);
@@ -150,7 +150,7 @@ const LoginScreen = () => {
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>USERNAME OR EMAIL ADDRESS</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.usernameOrEmail')}</Text>
                         <View style={dynamicStyles.inputWrapper}>
                             <FontAwesome name="user-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
                             <TextInput
@@ -158,7 +158,7 @@ const LoginScreen = () => {
                                 value={username}
                                 onChangeText={setUsername}
                                 autoCapitalize="none"
-                                placeholder="Enter your username or email address"
+                                placeholder={t('auth.usernameOrEmailPlaceholder')}
                                 placeholderTextColor="#A0A0A0"
                                 editable={!isSubmitting}
                             />
@@ -166,7 +166,7 @@ const LoginScreen = () => {
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>PASSWORD</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.password')}</Text>
                         <View style={dynamicStyles.inputWrapper}>
                             <FontAwesome name="lock" size={scale.ms(18)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
                             <TextInput
@@ -174,7 +174,7 @@ const LoginScreen = () => {
                                 value={password}
                                 onChangeText={setPassword}
                                 secureTextEntry={!isPasswordVisible}
-                                placeholder="Enter your password"
+                                placeholder={t('auth.passwordPlaceholder')}
                                 placeholderTextColor="#A0A0A0"
                                 editable={!isSubmitting}
                             />
@@ -198,14 +198,14 @@ const LoginScreen = () => {
                         {isSubmitting ? (
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
-                            <Text style={dynamicStyles.buttonText}>Login</Text>
+                            <Text style={dynamicStyles.buttonText}>{t('auth.login')}</Text>
                         )}
                     </TouchableOpacity>
 
                     <View style={dynamicStyles.registerContainer}>
-                        <Text style={dynamicStyles.registerText}>Don't have an account?</Text>
+                        <Text style={dynamicStyles.registerText}>{t('auth.noAccount')}</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                            <Text style={dynamicStyles.registerLink}>Register</Text>
+                            <Text style={dynamicStyles.registerLink}>{t('auth.register')}</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -213,7 +213,7 @@ const LoginScreen = () => {
                         style={dynamicStyles.forgotLinkContainer}
                         onPress={() => navigation.navigate('ForgotPassword')}
                     >
-                        <Text style={dynamicStyles.forgotLink}>Forgot password?</Text>
+                        <Text style={dynamicStyles.forgotLink}>{t('auth.forgotPassword')}</Text>
                     </TouchableOpacity>
 
                 </ScrollView>

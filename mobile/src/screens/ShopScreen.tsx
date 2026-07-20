@@ -23,6 +23,7 @@ import {
     WalletDto,
 } from '../api/store';
 import { resolveSeedPackageImage } from '../utils/seedPackageAssets';
+import { useLocalization } from '../localization';
 
 const BODY_BG = '#FFFFFF';
 const PANEL_BG = '#F7FFF7';
@@ -157,11 +158,18 @@ const isLimitedPool = (pool: TreePoolDto) =>
     || pool.poolType === 3
     || Boolean(pool.endTime);
 
-const formatRemainingUnit = (value: number, unit: string) => (
-    `${value} ${unit}${value === 1 ? '' : 's'} left`
-);
+const formatRemainingUnit = (
+    value: number,
+    unit: string,
+    format: (count: number, unitLabel: string) => string,
+) => format(value, unit);
 
-const getLimitedLabel = (pool: TreePoolDto, nowMs: number) => {
+const getLimitedLabel = (
+    pool: TreePoolDto,
+    nowMs: number,
+    format: (count: number, unitLabel: string) => string,
+    units: { minute: string; hour: string; day: string },
+) => {
     if (!pool.endTime) {
         return null;
     }
@@ -178,14 +186,14 @@ const getLimitedLabel = (pool: TreePoolDto, nowMs: number) => {
     }
 
     if (remainingMs < HOUR_MS) {
-        return formatRemainingUnit(Math.ceil(remainingMs / MINUTE_MS), 'min');
+        return formatRemainingUnit(Math.ceil(remainingMs / MINUTE_MS), units.minute, format);
     }
 
     if (remainingMs < DAY_MS) {
-        return formatRemainingUnit(Math.ceil(remainingMs / HOUR_MS), 'hour');
+        return formatRemainingUnit(Math.ceil(remainingMs / HOUR_MS), units.hour, format);
     }
 
-    return formatRemainingUnit(Math.ceil(remainingMs / DAY_MS), 'day');
+    return formatRemainingUnit(Math.ceil(remainingMs / DAY_MS), units.day, format);
 };
 
 interface WalletChipProps {
@@ -209,10 +217,20 @@ interface SeedRowProps {
 }
 
 const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, queuedQuantity, nowMs, onBuy }) => {
+    const { t } = useLocalization();
     const currencyAsset = getCurrencyAsset(pool.currencyType);
     const affordable = canBuyPool(pool, wallet);
     const disabled = !affordable;
-    const limitedLabel = getLimitedLabel(pool, nowMs);
+    const limitedLabel = getLimitedLabel(
+        pool,
+        nowMs,
+        (count, unit) => t('shop.timeLeft', { count, unit }),
+        {
+            minute: t('shop.minuteUnit'),
+            hour: t('shop.hourUnit'),
+            day: t('shop.dayUnit'),
+        },
+    );
     const displayedOwnedQuantity = pool.ownedSeedQuantity + queuedQuantity;
 
     return (
@@ -228,7 +246,7 @@ const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, queuedQuantity, nowMs, 
             <View style={styles.seedInfo}>
                 <Text numberOfLines={1} style={styles.seedName}>{pool.name}</Text>
                 <Text style={styles.ownedText}>
-                    Owned: {displayedOwnedQuantity}{queuedQuantity > 0 ? ` (+${queuedQuantity})` : ''}
+                    {t('shop.owned', { count: displayedOwnedQuantity })}{queuedQuantity > 0 ? ` (+${queuedQuantity})` : ''}
                 </Text>
                 {limitedLabel ? (
                     <View style={styles.durationPill}>
@@ -249,7 +267,7 @@ const SeedRow: React.FC<SeedRowProps> = ({ pool, wallet, queuedQuantity, nowMs, 
                     <Icon name="tag" size={scale.ms(16)} color="#FFFFFF" />
                 )}
                 <Text style={styles.buyText}>
-                    {affordable ? formatNumber(pool.cost) : 'Not enough'}
+                    {affordable ? formatNumber(pool.cost) : t('shop.notEnough')}
                 </Text>
             </TouchableOpacity>
         </View>
@@ -303,6 +321,7 @@ const SeedSection: React.FC<SeedSectionProps> = ({
 };
 
 const ShopScreen = () => {
+    const { t } = useLocalization();
     const [wallet, setWallet] = useState<WalletDto | null>(null);
     const [treePools, setTreePools] = useState<TreePoolDto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -364,12 +383,12 @@ const ShopScreen = () => {
             setWallet(walletData);
             setTreePools(poolData);
         } catch (error: any) {
-            setErrorMessage(getErrorMessage(error, 'Cannot load shop right now'));
+            setErrorMessage(getErrorMessage(error, t('shop.loadError')));
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         loadShop(true);
@@ -439,10 +458,10 @@ const ShopScreen = () => {
             }));
         } catch (error: any) {
             resetPurchaseBuffers();
-            Alert.alert('Purchase failed', getErrorMessage(error, 'Cannot buy this seed package'));
+            Alert.alert(t('shop.purchaseErrorTitle'), getErrorMessage(error, t('shop.purchaseError')));
             await loadShop(false);
         }
-    }, [loadShop, resetPurchaseBuffers]);
+    }, [loadShop, resetPurchaseBuffers, t]);
 
     const schedulePurchaseFlush = useCallback(() => {
         clearFlushTimer();
@@ -465,18 +484,18 @@ const ShopScreen = () => {
         );
 
         if (!canBuyPool(pool, currentEffectiveWallet)) {
-            Alert.alert('Not enough balance', 'You do not have enough currency to buy this seed package.');
+            Alert.alert(t('shop.balanceErrorTitle'), t('shop.balanceError'));
             return;
         }
 
         queuedPurchasesRef.current = addPurchaseQuantity(queuedPurchasesRef.current, pool.id, 1);
         setQueuedPurchases(queuedPurchasesRef.current);
         schedulePurchaseFlush();
-    }, [schedulePurchaseFlush, treePoolsById, wallet]);
+    }, [schedulePurchaseFlush, t, treePoolsById, wallet]);
 
     if (loading) {
         return (
-            <AppLayout title="Shop" iconPosition="left">
+            <AppLayout title={t('shop.title')} iconPosition="left">
                 <View style={styles.loadingState}>
                     <ActivityIndicator color={GREEN} size="large" />
                 </View>
@@ -485,7 +504,7 @@ const ShopScreen = () => {
     }
 
     return (
-        <AppLayout title="Shop" iconPosition="left">
+        <AppLayout title={t('shop.title')} iconPosition="left">
             <ScrollView
                 style={styles.screen}
                 contentContainerStyle={styles.scrollContent}
@@ -508,18 +527,18 @@ const ShopScreen = () => {
                         <Icon name="alert-circle" size={scale.ms(24)} color="#B42318" />
                         <Text style={styles.errorText}>{errorMessage}</Text>
                         <TouchableOpacity style={styles.retryButton} onPress={() => loadShop(true)}>
-                            <Text style={styles.retryText}>Retry</Text>
+                            <Text style={styles.retryText}>{t('common.retry')}</Text>
                         </TouchableOpacity>
                     </View>
                 ) : treePools.length === 0 ? (
                     <View style={styles.emptyCard}>
                         <Icon name="package" size={scale.ms(28)} color="#7C847D" />
-                        <Text style={styles.emptyTitle}>No seed available</Text>
+                        <Text style={styles.emptyTitle}>{t('shop.empty')}</Text>
                     </View>
                 ) : (
                     <View style={styles.sections}>
                         <SeedSection
-                            title="Permanent"
+                            title={t('shop.regularSeeds')}
                             pools={permanentPools}
                             wallet={effectiveWallet}
                             queuedPurchases={reservedPurchases}
@@ -527,7 +546,7 @@ const ShopScreen = () => {
                             onBuy={handleBuy}
                         />
                         <SeedSection
-                            title="Limited"
+                            title={t('shop.limitedSeeds')}
                             iconName="clock"
                             pools={limitedPools}
                             wallet={effectiveWallet}
