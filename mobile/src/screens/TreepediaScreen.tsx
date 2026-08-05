@@ -21,6 +21,7 @@ import { getTreepedia, TreepediaEntryDto } from '../api/store';
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
 import { getRarityColor, resolveTreeImage } from '../utils/treeAssets';
+import { useLocalization } from '../localization';
 
 const FRAME_SOURCE = require('../assets/frame-assets/frame.png');
 
@@ -317,6 +318,7 @@ const PageLayer: React.FC<PageLayerProps> = ({
 
 const TreepediaScreen = () => {
     const { theme } = useTheme();
+    const { t } = useLocalization();
     const [entries, setEntries] = useState<TreepediaEntryDto[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -353,12 +355,12 @@ const TreepediaScreen = () => {
             const result = await getTreepedia();
             setEntries(result);
         } catch (loadError: any) {
-            setError(getErrorMessage(loadError, 'Cannot load Treepedia.'));
+            setError(getErrorMessage(loadError, t('treepedia.loadError')));
         } finally {
             isLoadingRef.current = false;
             setLoading(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         loadTreepedia();
@@ -493,8 +495,8 @@ const TreepediaScreen = () => {
             <View style={styles.emptyIconWrap}>
                 <Icon name="book-open" size={scale.ms(30)} color="#3B653F" />
             </View>
-            <Text style={styles.emptyTitle}>No trees yet</Text>
-            <Text style={styles.emptyText}>Complete a focus session to add your first tree.</Text>
+            <Text style={styles.emptyTitle}>{t('treepedia.emptyTitle')}</Text>
+            <Text style={styles.emptyText}>{t('treepedia.emptyMessage')}</Text>
         </View>
     );
 
@@ -550,7 +552,7 @@ const TreepediaScreen = () => {
 
                                 <Text style={styles.detailTitle}>{selectedEntry.tree.name}</Text>
                                 <Text style={styles.detailDescription}>
-                                    {description || 'No description yet.'}
+                                    {description || t('treepedia.noDescription')}
                                 </Text>
                             </ScrollView>
                         ) : null}
@@ -601,22 +603,22 @@ const TreepediaScreen = () => {
     );
 
     return (
-        <AppLayout title="Treepedia" iconPosition="left">
+        <AppLayout title={t('nav.treepedia')} iconPosition="left">
             <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
                 {loading ? (
                     <View style={styles.loadingState}>
                         <ActivityIndicator color="#3B653F" size="large" />
-                        <Text style={styles.loadingText}>Loading Treepedia...</Text>
+                        <Text style={styles.loadingText}>{t('treepedia.loading')}</Text>
                     </View>
                 ) : error ? (
                     <View style={styles.emptyState}>
                         <View style={styles.emptyIconWrap}>
                             <Icon name="alert-circle" size={scale.ms(30)} color="#B42318" />
                         </View>
-                        <Text style={styles.emptyTitle}>Cannot load trees</Text>
+                        <Text style={styles.emptyTitle}>{t('treepedia.cannotLoad')}</Text>
                         <Text style={styles.emptyText}>{error}</Text>
                         <TouchableOpacity style={styles.retryButton} onPress={loadTreepedia}>
-                            <Text style={styles.retryButtonText}>Retry</Text>
+                            <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
                         </TouchableOpacity>
                     </View>
                 ) : entries.length === 0 ? (

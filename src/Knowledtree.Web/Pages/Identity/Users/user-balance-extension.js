@@ -1,5 +1,6 @@
 (function () {
     'use strict';
+    var l = abp.localization.getResource('Knowledtree');
 
     var cssId = 'knowledtree-user-balance-styles';
 
@@ -165,7 +166,7 @@
         var item = document.createElement('li');
         item.className = 'nav-item';
         item.setAttribute('role', 'presentation');
-        item.innerHTML = '<a class="nav-link" id="' + tabId + '" data-bs-toggle="tab" href="#' + paneId + '" role="tab" aria-controls="' + paneId + '" aria-selected="false">Balance</a>';
+        item.innerHTML = '<a class="nav-link" id="' + tabId + '" data-bs-toggle="tab" href="#' + paneId + '" role="tab" aria-controls="' + paneId + '" aria-selected="false">' + htmlEncode(l('Web:Balance')) + '</a>';
         tabList.appendChild(item);
 
         var pane = document.createElement('div');
@@ -222,7 +223,7 @@
             renderBalance(pane, data);
         }).catch(function () {
             pane.dataset.loaded = 'false';
-            pane.innerHTML = renderError('Cannot load balance data.');
+            pane.innerHTML = renderError(l('Web:LoadBalanceError'));
         });
     }
 
@@ -241,15 +242,15 @@
         }).then(function (data) {
             pane._balanceData = data;
             renderBalance(pane, data);
-            abp.notify.success('Balance updated.');
+            abp.notify.success(l('Web:BalanceUpdated'));
         }).catch(function () {
-            abp.notify.error('Cannot update wallet.');
+            abp.notify.error(l('Web:WalletUpdateError'));
         });
     }
 
     function savePackage(pane, treePoolId) {
         var input = pane.querySelector('[data-kt-balance-package-qty="' + treePoolId + '"]');
-        upsertPackage(pane, treePoolId, Math.max(0, Number(input.value || 0)), 'Seed package updated.');
+        upsertPackage(pane, treePoolId, Math.max(0, Number(input.value || 0)), l('Web:SeedPackageUpdated'));
     }
 
     function addPackage(pane) {
@@ -259,11 +260,11 @@
         var quantity = Math.max(0, Number(quantityInput.value || 0));
 
         if (!treePoolId || quantity <= 0) {
-            abp.notify.warn('Choose a tree pool and enter a quantity greater than zero.');
+            abp.notify.warn(l('Web:ChoosePoolQuantity'));
             return;
         }
 
-        upsertPackage(pane, treePoolId, quantity, 'Seed package saved.');
+        upsertPackage(pane, treePoolId, quantity, l('Web:SeedPackageSaved'));
     }
 
     function upsertPackage(pane, treePoolId, quantity, successMessage) {
@@ -279,12 +280,12 @@
             renderBalance(pane, data);
             abp.notify.success(successMessage);
         }).catch(function () {
-            abp.notify.error('Cannot save seed package.');
+            abp.notify.error(l('Web:SeedPackageSaveError'));
         });
     }
 
     function deletePackage(pane, treePoolId) {
-        if (!confirm('Remove this seed package from the user?')) {
+        if (!confirm(l('Web:RemoveSeedPackageConfirm'))) {
             return;
         }
 
@@ -294,9 +295,9 @@
         }).then(function (data) {
             pane._balanceData = data;
             renderBalance(pane, data);
-            abp.notify.success('Seed package removed.');
+            abp.notify.success(l('Web:SeedPackageRemoved'));
         }).catch(function () {
-            abp.notify.error('Cannot remove seed package.');
+            abp.notify.error(l('Web:SeedPackageRemoveError'));
         });
     }
 
@@ -304,34 +305,34 @@
         pane.innerHTML = [
             '<div class="kt-balance-summary">',
             '  <div class="kt-balance-field">',
-            '    <label>Coin</label>',
+            '    <label>' + htmlEncode(l('Web:Coin')) + '</label>',
             '    <input type="number" min="0" step="1" class="form-control" data-kt-balance-input="coin" value="' + Number(data.wallet.coin || 0) + '">',
             '  </div>',
             '  <div class="kt-balance-field">',
-            '    <label>Gem</label>',
+            '    <label>' + htmlEncode(l('Web:Gem')) + '</label>',
             '    <input type="number" min="0" step="1" class="form-control" data-kt-balance-input="gem" value="' + Number(data.wallet.gem || 0) + '">',
             '  </div>',
             '</div>',
             '<div class="d-flex justify-content-end mb-3">',
-            '  <button type="button" class="btn btn-primary btn-sm" data-kt-balance-action="save-wallet"><i class="fa fa-save me-1"></i>Save Balance</button>',
+            '  <button type="button" class="btn btn-primary btn-sm" data-kt-balance-action="save-wallet"><i class="fa fa-save me-1"></i>' + htmlEncode(l('Web:SaveBalance')) + '</button>',
             '</div>',
-            '<div class="kt-balance-section-title">Seed packages</div>',
+            '<div class="kt-balance-section-title">' + htmlEncode(l('Web:SeedPackages')) + '</div>',
             renderSeedPackages(data.seedPackages || []),
-            '<div class="kt-balance-section-title">Add or update package</div>',
+            '<div class="kt-balance-section-title">' + htmlEncode(l('Web:AddOrUpdatePackage')) + '</div>',
             renderAddPackage(data.treePools || []),
-            '<div class="text-muted small mt-2">Setting quantity to 0 removes the package.</div>'
+            '<div class="text-muted small mt-2">' + htmlEncode(l('Web:ZeroRemovesPackage')) + '</div>'
         ].join('');
     }
 
     function renderSeedPackages(seedPackages) {
         if (!seedPackages.length) {
-            return '<div class="kt-balance-empty">No seed package owned.</div>';
+            return '<div class="kt-balance-empty">' + htmlEncode(l('Web:NoSeedPackageOwned')) + '</div>';
         }
 
         var rows = seedPackages.map(function (item) {
             var activeBadge = item.treePoolIsActive
-                ? '<span class="badge bg-success">Active</span>'
-                : '<span class="badge bg-secondary">Inactive</span>';
+                ? '<span class="badge bg-success">' + htmlEncode(l('Active')) + '</span>'
+                : '<span class="badge bg-secondary">' + htmlEncode(l('Inactive')) + '</span>';
 
             return [
                 '<tr>',
@@ -343,8 +344,8 @@
                 '  <td><input type="number" min="0" step="1" class="form-control form-control-sm kt-balance-qty" data-kt-balance-package-qty="' + item.treePoolId + '" value="' + Number(item.quantity || 0) + '"></td>',
                 '  <td>',
                 '    <div class="kt-balance-actions">',
-                '      <button type="button" class="btn btn-outline-primary btn-sm" data-kt-balance-action="save-package" data-tree-pool-id="' + item.treePoolId + '">Save</button>',
-                '      <button type="button" class="btn btn-outline-danger btn-sm" data-kt-balance-action="delete-package" data-tree-pool-id="' + item.treePoolId + '">Delete</button>',
+                '      <button type="button" class="btn btn-outline-primary btn-sm" data-kt-balance-action="save-package" data-tree-pool-id="' + item.treePoolId + '">' + htmlEncode(l('Save')) + '</button>',
+                '      <button type="button" class="btn btn-outline-danger btn-sm" data-kt-balance-action="delete-package" data-tree-pool-id="' + item.treePoolId + '">' + htmlEncode(l('Delete')) + '</button>',
                 '    </div>',
                 '  </td>',
                 '</tr>'
@@ -354,7 +355,7 @@
         return [
             '<div class="table-responsive">',
             '  <table class="table table-sm kt-balance-table">',
-            '    <thead><tr><th>Package</th><th>Status</th><th>Quantity</th><th class="text-end">Actions</th></tr></thead>',
+            '    <thead><tr><th>' + htmlEncode(l('Web:Package')) + '</th><th>' + htmlEncode(l('Web:Status')) + '</th><th>' + htmlEncode(l('Web:Quantity')) + '</th><th class="text-end">' + htmlEncode(l('Actions')) + '</th></tr></thead>',
             '    <tbody>' + rows + '</tbody>',
             '  </table>',
             '</div>'
@@ -362,8 +363,8 @@
     }
 
     function renderAddPackage(treePools) {
-        var options = ['<option value="">Choose tree pool...</option>'].concat(treePools.map(function (pool) {
-            var label = pool.name + ' #' + pool.id + (pool.isActive ? '' : ' (inactive)');
+        var options = ['<option value="">' + htmlEncode(l('Web:ChooseTreePool')) + '</option>'].concat(treePools.map(function (pool) {
+            var label = pool.name + ' #' + pool.id + (pool.isActive ? '' : ' (' + l('Inactive').toLowerCase() + ')');
             return '<option value="' + pool.id + '">' + htmlEncode(label) + '</option>';
         })).join('');
 
@@ -371,28 +372,28 @@
             '<div class="kt-balance-add">',
             '  <div class="kt-balance-add-row">',
             '    <div>',
-            '      <label class="form-label">Tree pool</label>',
+            '      <label class="form-label">' + htmlEncode(l('Web:TreePool')) + '</label>',
             '      <select class="form-select form-select-sm" data-kt-balance-input="treePoolId">' + options + '</select>',
             '    </div>',
             '    <div>',
-            '      <label class="form-label">Quantity</label>',
+            '      <label class="form-label">' + htmlEncode(l('Web:Quantity')) + '</label>',
             '      <input type="number" min="1" step="1" class="form-control form-control-sm" data-kt-balance-input="quantity" value="1">',
             '    </div>',
-            '    <button type="button" class="btn btn-outline-primary btn-sm" data-kt-balance-action="add-package">Save Package</button>',
+            '    <button type="button" class="btn btn-outline-primary btn-sm" data-kt-balance-action="add-package">' + htmlEncode(l('Web:SavePackage')) + '</button>',
             '  </div>',
             '</div>'
         ].join('');
     }
 
     function renderLoading() {
-        return '<div class="text-center py-4"><i class="fa fa-spinner fa-spin me-1"></i>Loading balance...</div>';
+        return '<div class="text-center py-4"><i class="fa fa-spinner fa-spin me-1"></i>' + htmlEncode(l('Web:LoadingBalance')) + '</div>';
     }
 
     function renderError(message) {
         return [
             '<div class="kt-balance-error">',
             '  <div class="fw-semibold mb-2">' + htmlEncode(message) + '</div>',
-            '  <button type="button" class="btn btn-outline-danger btn-sm" data-kt-balance-action="reload">Retry</button>',
+            '  <button type="button" class="btn btn-outline-danger btn-sm" data-kt-balance-action="reload">' + htmlEncode(l('Retry')) + '</button>',
             '</div>'
         ].join('');
     }

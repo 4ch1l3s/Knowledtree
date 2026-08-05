@@ -18,6 +18,7 @@ import { sendPasswordResetCode } from '../api/auth';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
+import { useLocalization } from '../localization';
 
 const getErrorMessage = (error: any, fallback: string) =>
     error?.response?.data?.error?.message
@@ -33,18 +34,19 @@ const ForgotPasswordScreen = () => {
 
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { theme } = useTheme();
+    const { t } = useLocalization();
 
     const trimmedEmail = email.trim();
     const canSubmit = trimmedEmail.length > 0 && !isSubmitting;
 
     const handleSubmit = async () => {
         if (!trimmedEmail) {
-            setError('Enter your email address.');
+            setError(t('auth.validation.emailRequired'));
             return;
         }
 
         if (!trimmedEmail.includes('@')) {
-            setError('Enter a valid email address.');
+            setError(t('auth.validation.emailInvalid'));
             return;
         }
 
@@ -55,7 +57,7 @@ const ForgotPasswordScreen = () => {
             await sendPasswordResetCode({ email: trimmedEmail });
             setSentEmail(trimmedEmail);
         } catch (submitError: any) {
-            setError(getErrorMessage(submitError, 'Could not send reset email. Please try again.'));
+            setError(getErrorMessage(submitError, t('auth.resetSendError')));
         } finally {
             setIsSubmitting(false);
         }
@@ -217,13 +219,13 @@ const ForgotPasswordScreen = () => {
                         <FontAwesome name="envelope-o" size={scale.ms(30)} color="#3B653F" />
                     </View>
 
-                    <Text style={dynamicStyles.title}>Forgot password?</Text>
+                    <Text style={dynamicStyles.title}>{t('auth.forgotTitle')}</Text>
                     <Text style={dynamicStyles.subtitle}>
-                        Enter your account email and we will send a password reset link.
+                        {t('auth.forgotSubtitle')}
                     </Text>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>EMAIL ADDRESS</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.emailAddress')}</Text>
                         <View style={dynamicStyles.inputWrapper}>
                             <FontAwesome name="envelope-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
                             <TextInput
@@ -237,7 +239,7 @@ const ForgotPasswordScreen = () => {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 keyboardType="email-address"
-                                placeholder="email@example.com"
+                                placeholder={t('auth.emailPlaceholder')}
                                 placeholderTextColor="#A0A0A0"
                                 editable={!isSubmitting}
                             />
@@ -253,7 +255,7 @@ const ForgotPasswordScreen = () => {
                     {sentEmail && (
                         <View style={[dynamicStyles.feedbackContainer, dynamicStyles.successContainer]}>
                             <Text style={[dynamicStyles.feedbackText, dynamicStyles.successText]}>
-                                Reset email sent to {sentEmail}. Check your inbox and follow the link.
+                                {t('auth.resetSentTo', { email: sentEmail })}
                             </Text>
                         </View>
                     )}
@@ -267,14 +269,14 @@ const ForgotPasswordScreen = () => {
                         {isSubmitting ? (
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
-                            <Text style={dynamicStyles.buttonText}>Send Reset Link</Text>
+                            <Text style={dynamicStyles.buttonText}>{t('auth.sendResetLink')}</Text>
                         )}
                     </TouchableOpacity>
 
                     <View style={dynamicStyles.loginContainer}>
-                        <Text style={dynamicStyles.loginText}>Remember your password?</Text>
+                        <Text style={dynamicStyles.loginText}>{t('auth.rememberPassword')}</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                            <Text style={dynamicStyles.loginLink}>Log in</Text>
+                            <Text style={dynamicStyles.loginLink}>{t('auth.login')}</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

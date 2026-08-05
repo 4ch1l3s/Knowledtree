@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
 import { resolveTreeImage } from '../utils/treeAssets';
+import { useLocalization } from '../localization';
 
 type LoadMode = 'reset' | 'more';
 
@@ -79,6 +80,7 @@ const getDurationMinutes = (
 
 const HistoryScreen = () => {
     const { theme } = useTheme();
+    const { t } = useLocalization();
     const [items, setItems] = useState<PlantingSessionHistoryItemDto[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -119,13 +121,13 @@ const HistoryScreen = () => {
             setLoaded(true);
         } catch (error: any) {
             setLoaded(true);
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant load history');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('history.loadError'));
         } finally {
             loadInFlightRef.current = false;
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [items.length, loaded, loading, loadingMore, totalCount]);
+    }, [items.length, loaded, loading, loadingMore, t, totalCount]);
 
     useEffect(() => {
         if (!loaded && !loading) {
@@ -142,7 +144,7 @@ const HistoryScreen = () => {
         const endDate = getSessionEndDate(item);
         const durationMinutes = getDurationMinutes(item, startDate, endDate);
         const tagColor = item.tag?.colorCode || FALLBACK_TAG_COLOR;
-        const tagName = item.tag?.name || 'Focus session';
+        const tagName = item.tag?.name || t('history.focusSession');
         const isTerminalItem = index === items.length - 1 && items.length >= totalCount;
 
         return (
@@ -171,7 +173,7 @@ const HistoryScreen = () => {
                     <View style={styles.sessionContent}>
                         <Text style={styles.sessionDate}>{formatDate(startDate)}</Text>
                         <Text style={styles.sessionTime}>
-                            {formatTime(startDate)} - {formatTime(endDate)} ({durationMinutes} mins)
+                            {formatTime(startDate)} - {formatTime(endDate)} ({t('history.minutesShort', { count: durationMinutes })})
                         </Text>
                         <View style={styles.tagRow}>
                             <View style={[styles.tagDot, { backgroundColor: tagColor }]} />
@@ -183,10 +185,10 @@ const HistoryScreen = () => {
                 </View>
             </View>
         );
-    }, [items.length, totalCount]);
+    }, [items.length, t, totalCount]);
 
     return (
-        <AppLayout title="Timeline" iconPosition="left">
+        <AppLayout title={t('nav.history')} iconPosition="left">
             <View style={styles.container}>
                 {loading && items.length === 0 ? (
                     <View style={styles.loadingContainer}>
@@ -204,7 +206,7 @@ const HistoryScreen = () => {
                         showsVerticalScrollIndicator={false}
                         onEndReached={handleLoadMore}
                         onEndReachedThreshold={0.35}
-                        ListEmptyComponent={<Text style={styles.emptyText}>No completed sessions yet</Text>}
+                        ListEmptyComponent={<Text style={styles.emptyText}>{t('history.empty')}</Text>}
                         ListFooterComponent={
                             loadingMore ? (
                                 <ActivityIndicator style={styles.footerLoader} color={theme.colors.primaryDark} />

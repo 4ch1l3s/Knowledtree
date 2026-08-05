@@ -6,6 +6,7 @@ import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../theme';
 import { scale } from '../utils/scale';
+import { useLocalization } from '../localization';
 
 const RegisterScreen = () => {
     const [form, setForm] = useState({
@@ -26,36 +27,37 @@ const RegisterScreen = () => {
     const navigation = useNavigation<any>();
     const { register } = useContext(AuthContext);
     const { theme } = useTheme();
+    const { t } = useLocalization();
 
     const getFieldError = (field: keyof typeof form, value: string, allValues: typeof form) => {
         const trimmed = value.trim();
         switch (field) {
             case 'username':
-                if (!trimmed) return 'Vui lòng nhập tên đăng nhập';
-                if (trimmed.length < 3) return 'Tên đăng nhập phải có ít nhất 3 ký tự';
+                if (!trimmed) return t('auth.validation.usernameRequired');
+                if (trimmed.length < 3) return t('auth.validation.usernameMin');
                 return '';
 
             case 'name':
-                if (!trimmed) return 'Vui lòng nhập tên của bạn';
-                if (trimmed.length < 3) return 'Tên phải có ít nhất 3 ký tự';
+                if (!trimmed) return t('auth.validation.nameRequired');
+                if (trimmed.length < 3) return t('auth.validation.nameMin');
                 return '';
 
             case 'email':
-                if (!trimmed) return 'Vui lòng nhập email';
-                if (!trimmed.includes('@')) return 'Email không đúng định dạng';
+                if (!trimmed) return t('auth.validation.emailRequired');
+                if (!trimmed.includes('@')) return t('auth.validation.emailInvalid');
                 return '';
 
             case 'password':
-                if (!value) return 'Vui lòng nhập mật khẩu';
-                if (value.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự';
-                if (!/[!@#$%^&*(),.?":{}|<>\-_]/.test(value)) return 'Mật khẩu cần có ít nhất 1 ký tự đặc biệt';
-                if (!/[a-z]/.test(value)) return 'Mật khẩu cần có ít nhất 1 chữ thường';
-                if (!/[A-Z]/.test(value)) return 'Mật khẩu cần có ít nhất 1 chữ hoa';
+                if (!value) return t('auth.validation.passwordRequired');
+                if (value.length < 6) return t('auth.validation.passwordMin');
+                if (!/[!@#$%^&*(),.?":{}|<>\-_]/.test(value)) return t('auth.validation.passwordSpecial');
+                if (!/[a-z]/.test(value)) return t('auth.validation.passwordLower');
+                if (!/[A-Z]/.test(value)) return t('auth.validation.passwordUpper');
                 return '';
 
             case 'confirmPassword':
-                if (!value) return 'Vui lòng nhập lại mật khẩu';
-                if (value !== allValues.password) return 'Mật khẩu nhập lại không khớp';
+                if (!value) return t('auth.validation.confirmRequired');
+                if (value !== allValues.password) return t('auth.validation.confirmMismatch');
                 return '';
 
             default:
@@ -95,7 +97,7 @@ const RegisterScreen = () => {
         setErrors(newErrors);
 
         if (!agreeTerms) {
-            setServerError("You must agree to the Terms and Conditions.");
+            setServerError(t('auth.mustAgreeTerms'));
             return;
         }
 
@@ -123,7 +125,7 @@ const RegisterScreen = () => {
             } else if (abpError?.message) {
                 setServerError(abpError.message);
             } else {
-                setServerError(e.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+                setServerError(e.message || t('common.unknownError'));
             }
         } finally {
             setIsSubmitting(false);
@@ -162,40 +164,40 @@ const RegisterScreen = () => {
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <ScrollView contentContainerStyle={dynamicStyles.container} showsVerticalScrollIndicator={false}>
 
-                    <Text style={dynamicStyles.headerText}>Create Account</Text>
+                    <Text style={dynamicStyles.headerText}>{t('auth.createAccount')}</Text>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>USERNAME</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.username')}</Text>
                         <View style={[dynamicStyles.inputWrapper, touched.username && errors.username ? dynamicStyles.inputErrorWrapper : null]}>
                             <FontAwesome name="user-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
-                            <TextInput style={dynamicStyles.input} value={form.username} onChangeText={(v) => handleChange('username', v)} onBlur={() => handleBlur('username')} autoCapitalize="none" placeholder="Enter your username" placeholderTextColor="#A0A0A0" />
+                            <TextInput style={dynamicStyles.input} value={form.username} onChangeText={(v) => handleChange('username', v)} onBlur={() => handleBlur('username')} autoCapitalize="none" placeholder={t('auth.usernamePlaceholder')} placeholderTextColor="#A0A0A0" />
                         </View>
                         {touched.username && errors.username ? <Text style={dynamicStyles.errorText}>{errors.username}</Text> : null}
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>FULL NAME</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.fullName')}</Text>
                         <View style={[dynamicStyles.inputWrapper, touched.name && errors.name ? dynamicStyles.inputErrorWrapper : null]}>
                             <FontAwesome name="user-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
-                            <TextInput style={dynamicStyles.input} value={form.name} onChangeText={(v) => handleChange('name', v)} onBlur={() => handleBlur('name')} placeholder="Enter your full name" placeholderTextColor="#A0A0A0" />
+                            <TextInput style={dynamicStyles.input} value={form.name} onChangeText={(v) => handleChange('name', v)} onBlur={() => handleBlur('name')} placeholder={t('auth.fullNamePlaceholder')} placeholderTextColor="#A0A0A0" />
                         </View>
                         {touched.name && errors.name ? <Text style={dynamicStyles.errorText}>{errors.name}</Text> : null}
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>EMAIL ADDRESS</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.emailAddress')}</Text>
                         <View style={[dynamicStyles.inputWrapper, touched.email && errors.email ? dynamicStyles.inputErrorWrapper : null]}>
                             <FontAwesome name="envelope-o" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
-                            <TextInput style={dynamicStyles.input} value={form.email} onChangeText={(v) => handleChange('email', v)} onBlur={() => handleBlur('email')} autoCapitalize="none" keyboardType="email-address" placeholder="email@example.com" placeholderTextColor="#A0A0A0" />
+                            <TextInput style={dynamicStyles.input} value={form.email} onChangeText={(v) => handleChange('email', v)} onBlur={() => handleBlur('email')} autoCapitalize="none" keyboardType="email-address" placeholder={t('auth.emailPlaceholder')} placeholderTextColor="#A0A0A0" />
                         </View>
                         {touched.email && errors.email ? <Text style={dynamicStyles.errorText}>{errors.email}</Text> : null}
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>PASSWORD</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.password')}</Text>
                         <View style={[dynamicStyles.inputWrapper, touched.password && errors.password ? dynamicStyles.inputErrorWrapper : null]}>
                             <FontAwesome name="lock" size={scale.ms(18)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
-                            <TextInput style={dynamicStyles.input} value={form.password} onChangeText={(v) => handleChange('password', v)} onBlur={() => handleBlur('password')} secureTextEntry={!isPasswordVisible} placeholder="Create a password" placeholderTextColor="#A0A0A0" />
+                            <TextInput style={dynamicStyles.input} value={form.password} onChangeText={(v) => handleChange('password', v)} onBlur={() => handleBlur('password')} secureTextEntry={!isPasswordVisible} placeholder={t('auth.createPasswordPlaceholder')} placeholderTextColor="#A0A0A0" />
                             <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={dynamicStyles.inputEyeIcon}>
                                 <FontAwesome name={isPasswordVisible ? "eye" : "eye-slash"} size={scale.ms(16)} color="#8A9A8C" />
                             </TouchableOpacity>
@@ -204,10 +206,10 @@ const RegisterScreen = () => {
                     </View>
 
                     <View style={dynamicStyles.inputContainer}>
-                        <Text style={dynamicStyles.label}>CONFIRM PASSWORD</Text>
+                        <Text style={dynamicStyles.label}>{t('auth.confirmPassword')}</Text>
                         <View style={[dynamicStyles.inputWrapper, touched.confirmPassword && errors.confirmPassword ? dynamicStyles.inputErrorWrapper : null]}>
                             <FontAwesome name="refresh" size={scale.ms(16)} color="#8A9A8C" style={dynamicStyles.inputIcon} />
-                            <TextInput style={dynamicStyles.input} value={form.confirmPassword} onChangeText={(v) => handleChange('confirmPassword', v)} onBlur={() => handleBlur('confirmPassword')} secureTextEntry={!isPasswordVisible} placeholder="Repeat password" placeholderTextColor="#A0A0A0" />
+                            <TextInput style={dynamicStyles.input} value={form.confirmPassword} onChangeText={(v) => handleChange('confirmPassword', v)} onBlur={() => handleBlur('confirmPassword')} secureTextEntry={!isPasswordVisible} placeholder={t('auth.confirmPasswordPlaceholder')} placeholderTextColor="#A0A0A0" />
                             <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={dynamicStyles.inputEyeIcon}>
                                 <FontAwesome name={isPasswordVisible ? "eye" : "eye-slash"} size={scale.ms(16)} color="#8A9A8C" />
                             </TouchableOpacity>
@@ -217,7 +219,7 @@ const RegisterScreen = () => {
 
                     <TouchableOpacity style={dynamicStyles.checkboxContainer} onPress={() => setAgreeTerms(!agreeTerms)} activeOpacity={0.8}>
                         <FontAwesome name={agreeTerms ? "check-square" : "square-o"} size={scale.ms(20)} color={agreeTerms ? "#464E47" : "#A0A0A0"} />
-                        <Text style={dynamicStyles.checkboxText}>I agree to the Terms and Conditions and the Privacy Policy of Kairos Garden.</Text>
+                        <Text style={dynamicStyles.checkboxText}>{t('auth.agreeTerms')}</Text>
                     </TouchableOpacity>
 
                     {serverError && (
@@ -231,16 +233,16 @@ const RegisterScreen = () => {
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
                             <>
-                                <Text style={dynamicStyles.buttonText}>Sign Up</Text>
+                                <Text style={dynamicStyles.buttonText}>{t('auth.signUp')}</Text>
                                 <FontAwesome name="arrow-right" size={scale.ms(14)} color="#FFFFFF" />
                             </>
                         )}
                     </TouchableOpacity>
 
                     <View style={dynamicStyles.loginContainer}>
-                        <Text style={dynamicStyles.loginText}>Already have an account?</Text>
+                        <Text style={dynamicStyles.loginText}>{t('auth.hasAccount')}</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                            <Text style={dynamicStyles.loginLink}> Log in</Text>
+                            <Text style={dynamicStyles.loginLink}> {t('auth.login')}</Text>
                         </TouchableOpacity>
                     </View>
 

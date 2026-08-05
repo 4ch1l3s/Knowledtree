@@ -4,6 +4,7 @@
 // 2. Identity Users — Edit user modal (chỉ xem + xóa avatar, admin only)
 (function () {
     'use strict';
+    var l = abp.localization.getResource('Knowledtree');
 
     document.addEventListener('DOMContentLoaded', function () {
         setupAvatarErrorHandlers();
@@ -237,17 +238,17 @@
         var deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
         deleteBtn.className = 'btn btn-outline-danger btn-sm d-block mx-auto';
-        deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>Xóa avatar';
+        deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>' + l('Web:ResetAvatar');
         deleteBtn.style.cssText = 'min-width:140px;';
 
         deleteBtn.addEventListener('click', function () {
             // Confirmation dialog
-            if (!confirm('Bạn có chắc chắn muốn xóa ảnh đại diện của người dùng này?')) {
+            if (!confirm(l('Web:ResetAvatarConfirm', userName))) {
                 return;
             }
 
             deleteBtn.disabled = true;
-            deleteBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i>Đang xóa...';
+            deleteBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i>' + l('Web:Deleting');
 
             var headers = {};
             var csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value
@@ -266,7 +267,7 @@
                         // Ẩn ảnh, hiện placeholder
                         img.style.display = 'none';
                         placeholderText.style.display = 'flex';
-                        deleteBtn.innerHTML = '<i class="fa fa-check me-1"></i>Đã xóa';
+                        deleteBtn.innerHTML = '<i class="fa fa-check me-1"></i>' + l('Web:Deleted');
                         deleteBtn.classList.remove('btn-outline-danger');
                         deleteBtn.classList.add('btn-outline-secondary');
                         deleteBtn.disabled = true;
@@ -274,20 +275,20 @@
                         response.text().then(function (text) {
                             console.error('[Avatar] Xóa thất bại:', response.status, text);
                             if (response.status === 403) {
-                                alert('Bạn không có quyền xóa ảnh đại diện. Vui lòng kiểm tra quyền "User Avatar Management" trong phân quyền.');
+                                alert(l('Web:AvatarDeleteForbidden'));
                             } else {
-                                alert('Xóa ảnh đại diện thất bại: ' + response.status);
+                                alert(l('Web:AvatarDeleteFailed', response.status));
                             }
                         });
                         deleteBtn.disabled = false;
-                        deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>Xóa avatar';
+                        deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>' + l('Web:ResetAvatar');
                     }
                 })
                 .catch(function (err) {
                     console.error('[Avatar] Lỗi khi xóa:', err);
-                    alert('Lỗi khi xóa ảnh đại diện.');
+                    alert(l('Web:AvatarDeleteError'));
                     deleteBtn.disabled = false;
-                    deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>Xóa avatar';
+                    deleteBtn.innerHTML = '<i class="fa fa-trash me-1"></i>' + l('Web:ResetAvatar');
                 });
         });
 

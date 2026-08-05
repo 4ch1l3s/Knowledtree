@@ -219,13 +219,13 @@ public class KnowledtreeWebModule : AbpModule
                 bundle =>
                 {
                     bundle.AddFiles("/js/avatar-upload.js");
-                    bundle.AddFiles("/Pages/Identity/Users/user-balance-extension.js");
                 }
             );
             options.ScriptBundles.Configure(
                 typeof(Volo.Abp.Identity.Web.Pages.Identity.Users.IndexModel).FullName,
                 bundle =>
                 {
+                    bundle.AddFiles("/Pages/Identity/Users/user-balance-extension.js");
                     bundle.AddFiles("/Pages/Identity/Users/reset-avatar-extension.js");
                 }
             );

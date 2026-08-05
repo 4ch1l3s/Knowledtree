@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     ActivityIndicator,
     Alert,
+    Animated,
     AppState,
+    Easing,
     GestureResponderEvent,
     Image,
     KeyboardAvoidingView,
@@ -43,9 +45,11 @@ import {
     startPlantingSession,
 } from '../api/plantingSessions';
 import { resolveSeedPackageImage } from '../utils/seedPackageAssets';
-import { getRarityColor, getRarityLabel, resolveTreeImage } from '../utils/treeAssets';
+import { getRarityColor, resolveTreeImage } from '../utils/treeAssets';
+import { useLocalization } from '../localization';
 
 const dirtAsset = require('../assets/dirt-asset.png');
+const minorTreeAsset = require('../assets/trees/asset_minor_tree.png');
 
 const STEP_MINUTES = 5;
 const MIN_MINUTES = 30;
@@ -63,12 +67,12 @@ const TRACK_COLOR = '#DCE5DB';
 const SEAM_LOCK_DEGREES = 90;
 const PLOT_TOUCH_SIZE = RING_SIZE - scale.s(60);
 const PLOT_TOUCH_RADIUS = PLOT_TOUCH_SIZE / 2;
+const SEEDLING_SIZE = scale.s(92);
 const SEED_MODAL_TARGET_HEIGHT = scale.vs(646);
 const ACTIVE_PLANTING_SESSION_CODE = 'Knowledtree:TreeStore:00010';
 const PLANTING_SESSION_NOT_READY_CODE = 'Knowledtree:TreeStore:00012';
 const ACTIVE_SESSION_ID_KEY = '@knowledtree/activePlantingSessionId';
 const PENDING_FAILED_SESSION_ID_KEY = '@knowledtree/pendingFailedPlantingSessionId';
-const SESSION_FAILED_MESSAGE = 'You left or paused the session. The seed was consumed and no reward can be claimed.';
 let guardedSessionIdThisRuntime: string | null = null;
 const TAG_COLORS = [
     '#3B6B3B',
@@ -94,11 +98,15 @@ const getPlannedFocusDurationSeconds = (plannedDurationMinutes: number) => (
     plannedDurationMinutes * 60
 );
 
-const getErrorMessage = (error: any, fallback: string) =>
+const getErrorMessage = (
+    error: any,
+    fallback: string,
+    knownMessages?: { activeSession?: string; notReady?: string },
+) =>
     error?.response?.data?.error?.code === ACTIVE_PLANTING_SESSION_CODE
-        ? 'A focus session is already running.'
+        ? knownMessages?.activeSession || fallback
         : error?.response?.data?.error?.code === PLANTING_SESSION_NOT_READY_CODE
-        ? 'The session is not ready to claim yet.'
+        ? knownMessages?.notReady || fallback
         : error?.response?.data?.error?.message
             || error?.response?.data?.message
             || error?.message
@@ -137,6 +145,7 @@ const clearPersistedSessionGuard = async () => {
 const GrowTreeScreen = () => {
     const navigation = useNavigation<any>();
     const { theme } = useTheme();
+    const { t } = useLocalization();
     const { height, width } = useWindowDimensions();
     const isShortScreen = height < 760;
     const seedGridGap = scale.s(14);
@@ -168,6 +177,7 @@ const GrowTreeScreen = () => {
     const [creatingTag, setCreatingTag] = useState(false);
     const [activeSession, setActiveSession] = useState<PlantingSessionDto | null>(null);
     const activeSessionRef = useRef<PlantingSessionDto | null>(null);
+    const seedlingGrowthProgress = useRef(new Animated.Value(0)).current;
     const isFailingSessionRef = useRef(false);
     const failErrorAlertSessionIdRef = useRef<string | null>(null);
     const nextFailAttemptAtRef = useRef(0);
@@ -191,11 +201,11 @@ const GrowTreeScreen = () => {
     const knobRadians = knobAngle * Math.PI / 180;
     const knobX = RING_RADIUS + Math.sin(knobRadians) * KNOB_RADIUS - KNOB_SIZE / 2;
     const knobY = RING_RADIUS - Math.cos(knobRadians) * KNOB_RADIUS - KNOB_SIZE / 2;
-    const displayedTagName = selectedTag?.name || 'Deep Work';
+    const displayedTagName = selectedTag?.name || t('grow.defaultTag');
     const displayedTagColor = selectedTag?.colorCode || '#3C6540';
     const seedHintText = activeSession
-        ? 'Session locked. Stay on this screen.'
-        : selectedSeedPackage?.treePoolName || 'Tap the soil to choose a seed';
+        ? t('grow.sessionLockedHint')
+        : selectedSeedPackage?.treePoolName || t('grow.chooseSeedHint');
     const isPrimaryActionBusy = isStartConfirming
         || isStartingSession
         || isCompletingSession
@@ -205,12 +215,31 @@ const GrowTreeScreen = () => {
         ? (isReadyToClaim ? 'gift' : 'lock')
         : 'play';
     const primaryActionLabel = activeSession
-        ? (isReadyToClaim ? 'Claim Reward' : 'Session Locked')
-        : 'Start Focus';
+        ? (isReadyToClaim ? t('grow.claimReward') : t('grow.sessionLocked'))
+        : t('grow.startFocus');
 
     useEffect(() => {
         activeSessionRef.current = activeSession;
     }, [activeSession]);
+
+    useEffect(() => {
+        if (!activeSession) {
+            seedlingGrowthProgress.setValue(0);
+            return undefined;
+        }
+
+        seedlingGrowthProgress.setValue(0);
+        const growthAnimation = Animated.timing(seedlingGrowthProgress, {
+            toValue: 1,
+            duration: 620,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+        });
+
+        growthAnimation.start();
+
+        return () => growthAnimation.stop();
+    }, [activeSession, seedlingGrowthProgress]);
 
     useEffect(() => {
         if (!activeSession) {
@@ -259,12 +288,12 @@ const GrowTreeScreen = () => {
             setTagsLoaded(true);
             return data;
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant load tags');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('grow.loadTagsError'));
             return [];
         } finally {
             setTagsLoading(false);
         }
-    }, []);
+    }, [t]);
 
     const loadSeedPackages = useCallback(async () => {
         setSeedPackagesLoading(true);
@@ -288,11 +317,11 @@ const GrowTreeScreen = () => {
                 return availablePackages.find(seedPackage => seedPackage.id === currentPackage.id) ?? null;
             });
         } catch (error: any) {
-            setSeedPackagesError(getErrorMessage(error, 'Cant load seeds'));
+            setSeedPackagesError(getErrorMessage(error, t('grow.loadSeedsError')));
         } finally {
             setSeedPackagesLoading(false);
         }
-    }, []);
+    }, [t]);
 
     const openSeedPicker = useCallback(() => {
         if (!canEditSession) {
@@ -373,11 +402,11 @@ const GrowTreeScreen = () => {
             setIsTagPickerVisible(true);
             loadTags();
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant create tag');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('grow.createTagError'));
         } finally {
             setCreatingTag(false);
         }
-    }, [formColor, formName, loadTags, resetCreateTagForm]);
+    }, [formColor, formName, loadTags, resetCreateTagForm, t]);
 
     const confirmSelectedTag = useCallback(() => {
         setSelectedTag(draftSelectedTag);
@@ -438,7 +467,7 @@ const GrowTreeScreen = () => {
                 setRewardResult(null);
                 setActiveSession(null);
                 setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
-                Alert.alert('Session failed', SESSION_FAILED_MESSAGE);
+                Alert.alert(t('grow.sessionFailed'), t('grow.sessionFailedMessage'));
             } catch (error: any) {
                 activeSessionRef.current = null;
                 setRewardResult(null);
@@ -448,10 +477,10 @@ const GrowTreeScreen = () => {
                 if (failErrorAlertSessionIdRef.current !== session.id) {
                     failErrorAlertSessionIdRef.current = session.id;
                     Alert.alert(
-                        'Cannot fail session',
+                        t('grow.failSessionError'),
                         isFailEndpointUnavailableError(error)
-                            ? 'The backend is still running an older build. Restart the backend, then open the app again.'
-                            : getErrorMessage(error, 'Please try again.'),
+                            ? t('grow.oldBackendError')
+                            : getErrorMessage(error, t('grow.tryAgain')),
                     );
                 }
             } finally {
@@ -467,7 +496,7 @@ const GrowTreeScreen = () => {
         setActiveSession(session);
         setRemainingSeconds(session.requiredFocusDurationSeconds);
         return true;
-    }, [focusMinutes]);
+    }, [focusMinutes, t]);
 
     useEffect(() => {
         resumeActiveSession().catch(() => undefined);
@@ -508,23 +537,23 @@ const GrowTreeScreen = () => {
             options?.onSucceeded?.();
 
             if (options?.showAlert !== false) {
-                Alert.alert('Session failed', SESSION_FAILED_MESSAGE);
+                Alert.alert(t('grow.sessionFailed'), t('grow.sessionFailedMessage'));
             }
         } catch (error: any) {
             if (options?.showErrorAlert !== false && failErrorAlertSessionIdRef.current !== session.id) {
                 failErrorAlertSessionIdRef.current = session.id;
                 Alert.alert(
-                    'Cannot fail session',
+                    t('grow.failSessionError'),
                     isFailEndpointUnavailableError(error)
-                        ? 'The backend is still running an older build. Restart the backend, then open the app again.'
-                        : getErrorMessage(error, 'Please try again.'),
+                        ? t('grow.oldBackendError')
+                        : getErrorMessage(error, t('grow.tryAgain')),
                 );
             }
         } finally {
             isFailingSessionRef.current = false;
             setIsFailingSession(false);
         }
-    }, [focusMinutes]);
+    }, [focusMinutes, t]);
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
@@ -610,7 +639,9 @@ const GrowTreeScreen = () => {
                 return;
             }
 
-            Alert.alert('Cannot start focus', getErrorMessage(error, 'Please try again.'));
+            Alert.alert(t('grow.startError'), getErrorMessage(error, t('grow.tryAgain'), {
+                activeSession: t('grow.activeSession'),
+            }));
         } finally {
             setIsStartingSession(false);
         }
@@ -620,11 +651,12 @@ const GrowTreeScreen = () => {
         resumeActiveSession,
         selectedSeedPackage,
         selectedTag,
+        t,
     ]);
 
     const handleStartFocus = useCallback(() => {
         if (!selectedSeedPackage) {
-            Alert.alert('Select a seed', 'Choose a seed package before starting focus.');
+            Alert.alert(t('grow.selectSeed'), t('grow.selectSeedMessage'));
             openSeedPicker();
             return;
         }
@@ -635,16 +667,16 @@ const GrowTreeScreen = () => {
 
         setIsStartConfirming(true);
         Alert.alert(
-            'Start focus session?',
-            'Once started, you cannot stop midway. Leaving or pausing will fail the session, consume the seed, and give no reward.',
+            t('grow.startConfirmTitle'),
+            t('grow.startConfirmMessage'),
             [
                 {
-                    text: 'Cancel',
+                    text: t('common.cancel'),
                     style: 'cancel',
                     onPress: () => setIsStartConfirming(false),
                 },
                 {
-                    text: 'Start',
+                    text: t('grow.start'),
                     style: 'destructive',
                     onPress: () => {
                         setIsStartConfirming(false);
@@ -662,6 +694,7 @@ const GrowTreeScreen = () => {
         isStartConfirming,
         openSeedPicker,
         selectedSeedPackage,
+        t,
     ]);
 
     const handleCompleteFocus = useCallback(async () => {
@@ -670,7 +703,7 @@ const GrowTreeScreen = () => {
         }
 
         if (remainingSeconds > 0) {
-            Alert.alert('Still growing', 'The session is not ready to claim yet.');
+            Alert.alert(t('grow.stillGrowing'), t('grow.notReady'));
             return;
         }
 
@@ -689,15 +722,17 @@ const GrowTreeScreen = () => {
         } catch (error: any) {
             if (isPlantingSessionNotReadyError(error)) {
                 setRemainingSeconds(1);
-                Alert.alert('Still growing', getErrorMessage(error, 'The session is not ready to claim yet.'));
+                Alert.alert(t('grow.stillGrowing'), getErrorMessage(error, t('grow.notReady'), {
+                    notReady: t('grow.notReady'),
+                }));
                 return;
             }
 
-            Alert.alert('Cannot claim reward', getErrorMessage(error, 'Please try again.'));
+            Alert.alert(t('grow.claimError'), getErrorMessage(error, t('grow.tryAgain')));
         } finally {
             setIsCompletingSession(false);
         }
-    }, [activeSession, focusMinutes, remainingSeconds]);
+    }, [activeSession, focusMinutes, remainingSeconds, t]);
 
     const handlePrimaryAction = useCallback(() => {
         if (activeSession) {
@@ -776,7 +811,7 @@ const GrowTreeScreen = () => {
     }), [shouldHandleProgressGesture, updateFocusMinutes]);
 
     return (
-        <AppLayout title="Grow a tree" iconPosition="left" menuDisabled={!!activeSession}>
+        <AppLayout title={t('nav.growTree')} iconPosition="left" menuDisabled={!!activeSession}>
             <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
                 <View style={[
                     styles.panel,
@@ -813,9 +848,36 @@ const GrowTreeScreen = () => {
 
                         <Image source={dirtAsset} style={styles.dirtImage} resizeMode="contain" />
 
+                        {activeSession ? (
+                            <Animated.Image
+                                source={minorTreeAsset}
+                                style={[
+                                    styles.seedlingImage,
+                                    {
+                                        opacity: seedlingGrowthProgress,
+                                        transform: [
+                                            {
+                                                translateY: seedlingGrowthProgress.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [scale.s(30), 0],
+                                                }),
+                                            },
+                                            {
+                                                scale: seedlingGrowthProgress.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [0.45, 1],
+                                                }),
+                                            },
+                                        ],
+                                    },
+                                ]}
+                                resizeMode="contain"
+                            />
+                        ) : null}
+
                         <Pressable
                             accessibilityRole="button"
-                            accessibilityLabel="Select a seed"
+                            accessibilityLabel={t('grow.selectSeed')}
                             style={styles.plotTouchTarget}
                             onPress={openSeedPicker}
                             disabled={!canEditSession}
@@ -912,7 +974,7 @@ const GrowTreeScreen = () => {
                                 <TextInput
                                     value={tagSearchQuery}
                                     onChangeText={setTagSearchQuery}
-                                    placeholder="Search existing tags..."
+                                    placeholder={t('grow.tagSearchPlaceholder')}
                                     placeholderTextColor="rgba(66, 73, 64, 0.5)"
                                     style={styles.tagSearchInput}
                                     autoCapitalize="none"
@@ -959,7 +1021,7 @@ const GrowTreeScreen = () => {
                                     })
                                 ) : (
                                     <Text style={styles.tagPickerEmptyText}>
-                                        {tagSearchQuery.trim() ? 'No matching tags' : 'No tags yet'}
+                                        {t(tagSearchQuery.trim() ? 'tags.noMatches' : 'tags.empty')}
                                     </Text>
                                 )}
 
@@ -969,7 +1031,7 @@ const GrowTreeScreen = () => {
                                     onPress={openCreateTagModal}
                                 >
                                     <Icon name="plus" size={scale.ms(12)} color="#161D18" />
-                                    <Text style={styles.newTagText}>New Tag</Text>
+                                    <Text style={styles.newTagText}>{t('tags.new')}</Text>
                                 </TouchableOpacity>
                             </ScrollView>
 
@@ -982,7 +1044,7 @@ const GrowTreeScreen = () => {
                                 onPress={confirmSelectedTag}
                                 disabled={!draftSelectedTag}
                             >
-                                <Text style={styles.selectTagButtonText}>Select Tag</Text>
+                                <Text style={styles.selectTagButtonText}>{t('tags.select')}</Text>
                             </TouchableOpacity>
                         </Pressable>
                     </Pressable>
@@ -1003,20 +1065,20 @@ const GrowTreeScreen = () => {
                         <Pressable style={styles.createTagSurface} onPress={() => undefined}>
                             <View style={styles.createTagHandle} />
 
-                            <Text style={styles.createTagTitle}>Create New Tag</Text>
+                            <Text style={styles.createTagTitle}>{t('tags.createTitle')}</Text>
 
-                            <Text style={styles.createTagLabel}>Enter tag name</Text>
+                            <Text style={styles.createTagLabel}>{t('tags.nameLabel')}</Text>
                             <TextInput
                                 value={formName}
                                 onChangeText={setFormName}
                                 style={styles.createTagInput}
-                                placeholder="e.g. Deep Work"
+                                placeholder={t('tags.example')}
                                 placeholderTextColor="#AAAAAA"
                                 maxLength={15}
                                 autoFocus
                             />
 
-                            <Text style={styles.createTagLabel}>Select Color</Text>
+                            <Text style={styles.createTagLabel}>{t('tags.selectColor')}</Text>
                             <View style={styles.colorGrid}>
                                 {TAG_COLORS.map(color => (
                                     <TouchableOpacity
@@ -1044,7 +1106,7 @@ const GrowTreeScreen = () => {
                                 {creatingTag ? (
                                     <ActivityIndicator color="#FFFFFF" />
                                 ) : (
-                                    <Text style={styles.createTagButtonText}>Create Tag</Text>
+                                    <Text style={styles.createTagButtonText}>{t('tags.create')}</Text>
                                 )}
                             </TouchableOpacity>
                         </Pressable>
@@ -1066,28 +1128,28 @@ const GrowTreeScreen = () => {
                         <View style={styles.seedModalHandle} />
 
                         <View style={styles.seedModalHeader}>
-                            <Text style={styles.seedModalTitle}>Select a Seed</Text>
+                            <Text style={styles.seedModalTitle}>{t('grow.seedPickerTitle')}</Text>
                         </View>
 
                         <View style={styles.seedModalBody}>
                             {seedPackagesLoading ? (
                                 <View style={styles.seedPickerState}>
                                     <ActivityIndicator color={PROGRESS_COLOR} size="large" />
-                                    <Text style={styles.seedPickerStateText}>Loading seeds...</Text>
+                                    <Text style={styles.seedPickerStateText}>{t('grow.loadingSeeds')}</Text>
                                 </View>
                             ) : seedPackagesError ? (
                                 <View style={styles.seedPickerState}>
                                     <View style={styles.seedEmptyIconWrap}>
                                         <Icon name="alert-circle" size={scale.ms(30)} color="#B42318" />
                                     </View>
-                                    <Text style={styles.seedEmptyTitle}>Cannot load seeds</Text>
+                                    <Text style={styles.seedEmptyTitle}>{t('grow.cannotLoadSeeds')}</Text>
                                     <Text style={styles.seedEmptyDescription}>{seedPackagesError}</Text>
                                     <TouchableOpacity
                                         style={styles.seedRetryButton}
                                         activeOpacity={0.82}
                                         onPress={loadSeedPackages}
                                     >
-                                        <Text style={styles.seedRetryButtonText}>Retry</Text>
+                                        <Text style={styles.seedRetryButtonText}>{t('common.retry')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             ) : seedPackages.length > 0 ? (
@@ -1154,9 +1216,9 @@ const GrowTreeScreen = () => {
                                     <View style={styles.seedEmptyIconWrap}>
                                         <Icon name="package" size={scale.ms(30)} color="#3B653F" />
                                     </View>
-                                    <Text style={styles.seedEmptyTitle}>No seed available</Text>
+                                    <Text style={styles.seedEmptyTitle}>{t('grow.noSeeds')}</Text>
                                     <Text style={styles.seedEmptyDescription}>
-                                        Visit the shop to get seeds before planting.
+                                        {t('grow.noSeedsDescription')}
                                     </Text>
                                 </View>
                             )}
@@ -1169,7 +1231,7 @@ const GrowTreeScreen = () => {
                                 onPress={goToShop}
                             >
                                 <Icon name="shopping-bag" size={scale.ms(18)} color="#FFFFFF" />
-                                <Text style={styles.seedShopButtonText}>SHOP</Text>
+                                <Text style={styles.seedShopButtonText}>{t('grow.shop')}</Text>
                             </TouchableOpacity>
                         </View>
                     </Pressable>
@@ -1199,28 +1261,37 @@ const GrowTreeScreen = () => {
                                     ]}
                                 >
                                     <Text style={styles.rewardRarityText}>
-                                        {getRarityLabel(rewardResult.resultTree.rarity)}
+                                        {t(rewardResult.resultTree.rarity === 0
+                                            ? 'rarity.common'
+                                            : rewardResult.resultTree.rarity === 1
+                                                ? 'rarity.rare'
+                                                : 'rarity.gold')}
                                     </Text>
                                 </View>
 
                                 <Text style={styles.rewardTitle}>{rewardResult.resultTree.name}</Text>
                                 <Text style={styles.rewardDescription}>
                                     {rewardResult.isDuplicate
-                                        ? `Duplicate converted into ${rewardResult.bonusGemReward > 0
-                                            ? `${rewardResult.bonusGemReward} gem`
-                                            : `${rewardResult.bonusCoinReward} coin`}.`
-                                        : 'A new tree has been added to your Treepedia.'}
+                                        ? t(
+                                            rewardResult.bonusGemReward > 0
+                                                ? 'grow.duplicateRewardGem'
+                                                : 'grow.duplicateRewardCoin',
+                                            { count: rewardResult.bonusGemReward > 0
+                                                ? rewardResult.bonusGemReward
+                                                : rewardResult.bonusCoinReward },
+                                        )
+                                        : t('grow.newTreeReward')}
                                 </Text>
 
                                 <View style={styles.rewardStats}>
                                     <Text style={styles.rewardStatText}>
-                                        Owned x{rewardResult.totalObtainedCount}
+                                        {t('grow.owned', { count: rewardResult.totalObtainedCount })}
                                     </Text>
                                     <Text style={styles.rewardStatText}>
-                                        Coin {rewardResult.wallet.coin}
+                                        {t('grow.coin', { count: rewardResult.wallet.coin })}
                                     </Text>
                                     <Text style={styles.rewardStatText}>
-                                        Gem {rewardResult.wallet.gem}
+                                        {t('grow.gem', { count: rewardResult.wallet.gem })}
                                     </Text>
                                 </View>
 
@@ -1229,7 +1300,7 @@ const GrowTreeScreen = () => {
                                     activeOpacity={0.82}
                                     onPress={() => setRewardResult(null)}
                                 >
-                                    <Text style={styles.rewardButtonText}>Done</Text>
+                                    <Text style={styles.rewardButtonText}>{t('common.done')}</Text>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -1305,6 +1376,14 @@ const styles = StyleSheet.create({
         width: scale.s(240),
         height: scale.vs(280),
         marginTop: scale.vs(90),
+    },
+    seedlingImage: {
+        position: 'absolute',
+        top: scale.s(55),
+        left: (RING_SIZE - SEEDLING_SIZE) / 2,
+        width: SEEDLING_SIZE,
+        height: SEEDLING_SIZE,
+        zIndex: 1,
     },
     plotTouchTarget: {
         position: 'absolute',

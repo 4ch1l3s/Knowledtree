@@ -32,6 +32,7 @@ import {
     searchFriendCandidates,
     sendFriendRequest,
 } from '../api/friendships';
+import { AppLanguage, useLocalization } from '../localization';
 
 type FriendTab = 'friends' | 'requests' | 'pending';
 type LoadMode = 'reset' | 'more';
@@ -46,12 +47,6 @@ interface FriendTabState {
 
 const PAGE_SIZE = 20;
 const INITIAL_LOADER_DELAY_MS = 250;
-
-const TABS: Array<{ key: FriendTab; label: string }> = [
-    { key: 'friends', label: 'Friends' },
-    { key: 'requests', label: 'Requests' },
-    { key: 'pending', label: 'Pending' },
-];
 
 const createInitialTabState = (): FriendTabState => ({
     items: [],
@@ -84,7 +79,13 @@ const fetchByTab = async (
     return getPendingFriends(input);
 };
 
-const formatItemTime = (item: FriendshipDto, tab: FriendTab): string => {
+const formatItemTime = (
+    item: FriendshipDto,
+    tab: FriendTab,
+    language: AppLanguage,
+    justNow: string,
+    yesterdayLabel: string,
+): string => {
     const rawDate = tab === 'friends'
         ? item.lastModificationTime || item.creationTime
         : item.creationTime;
@@ -99,7 +100,7 @@ const formatItemTime = (item: FriendshipDto, tab: FriendTab): string => {
     const diffMinutes = Math.floor(diffMs / 60000);
 
     if (diffMinutes < 1) {
-        return 'Just Now';
+        return justNow;
     }
 
     const isSameDay =
@@ -108,7 +109,7 @@ const formatItemTime = (item: FriendshipDto, tab: FriendTab): string => {
         && now.getDate() === date.getDate();
 
     if (isSameDay) {
-        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        return date.toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-US', { hour: 'numeric', minute: '2-digit' });
     }
 
     const yesterday = new Date(now);
@@ -120,14 +121,20 @@ const formatItemTime = (item: FriendshipDto, tab: FriendTab): string => {
         && yesterday.getDate() === date.getDate();
 
     if (isYesterday) {
-        return 'Yesterday';
+        return yesterdayLabel;
     }
 
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', { month: 'short', day: 'numeric' });
 };
 
 const FriendScreen = () => {
     const { theme } = useTheme();
+    const { language, t } = useLocalization();
+    const tabs = useMemo<Array<{ key: FriendTab; label: string }>>(() => [
+        { key: 'friends', label: t('friends.tab.friends') },
+        { key: 'requests', label: t('friends.tab.requests') },
+        { key: 'pending', label: t('friends.tab.pending') },
+    ], [t]);
     const [activeTab, setActiveTab] = useState<FriendTab>('friends');
     const [tabData, setTabData] = useState<Record<FriendTab, FriendTabState>>(createInitialState);
     const [showInitialLoader, setShowInitialLoader] = useState(false);
@@ -197,17 +204,17 @@ const FriendScreen = () => {
                 },
             }));
 
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant load friends');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('friends.loadError'));
         }
-    }, [tabData]);
+    }, [t, tabData]);
 
     useEffect(() => {
-        TABS.forEach(({ key }) => {
+        tabs.forEach(({ key }) => {
             if (!tabData[key].loading && !tabData[key].loadingMore) {
                 loadInFlightRef.current[key] = false;
             }
         });
-    }, [tabData]);
+    }, [tabData, tabs]);
 
     useEffect(() => {
         if (!activeState.loaded && !activeState.loading) {
@@ -252,27 +259,27 @@ const FriendScreen = () => {
             removeItem('requests', item.id);
             markTabStale('friends');
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant accept request');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('friends.acceptError'));
         }
-    }, [markTabStale, removeItem]);
+    }, [markTabStale, removeItem, t]);
 
     const handleDecline = useCallback(async (item: FriendshipDto) => {
         try {
             await declineFriendRequest(item.id);
             removeItem('requests', item.id);
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant decline request');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('friends.declineError'));
         }
-    }, [removeItem]);
+    }, [removeItem, t]);
 
     const handleCancel = useCallback(async (item: FriendshipDto) => {
         try {
             await cancelFriendRequest(item.id);
             removeItem('pending', item.id);
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant cancel request');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('friends.cancelError'));
         }
-    }, [removeItem]);
+    }, [removeItem, t]);
 
     const handleLoadMore = useCallback(() => {
         loadTab(activeTab, 'more');
@@ -313,11 +320,11 @@ const FriendScreen = () => {
         } catch (error: any) {
             setCandidateResults([]);
             setCandidateLoaded(true);
-            setCandidateError(error?.response?.data?.error?.message || 'Cant search users');
+            setCandidateError(error?.response?.data?.error?.message || t('friends.searchError'));
         } finally {
             setCandidateLoading(false);
         }
-    }, [candidateQuery]);
+    }, [candidateQuery, t]);
 
     const handleSendFriendRequest = useCallback(async (candidate: FriendCandidateDto) => {
         setSendingCandidateId(candidate.id);
@@ -326,13 +333,13 @@ const FriendScreen = () => {
             await sendFriendRequest(candidate.id);
             setCandidateResults(prev => prev.filter(item => item.id !== candidate.id));
             markTabStale('pending');
-            Alert.alert('Request sent', `Friend request sent to ${candidate.displayName || candidate.userName}`);
+            Alert.alert(t('friends.requestSent'), t('friends.requestSentTo', { name: candidate.displayName || candidate.userName }));
         } catch (error: any) {
-            Alert.alert('Error', error?.response?.data?.error?.message || 'Cant send friend request');
+            Alert.alert(t('common.error'), error?.response?.data?.error?.message || t('friends.sendError'));
         } finally {
             setSendingCandidateId(null);
         }
-    }, [markTabStale]);
+    }, [markTabStale, t]);
 
     const rightAction = useMemo(() => (
         <TouchableOpacity style={styles.headerAction} activeOpacity={0.7}>
@@ -438,7 +445,7 @@ const FriendScreen = () => {
 
         return (
             <View style={styles.timeWrapper}>
-                <Text style={styles.timeText}>{formatItemTime(item, activeTab)}</Text>
+                <Text style={styles.timeText}>{formatItemTime(item, activeTab, language, t('friends.justNow'), t('friends.yesterday'))}</Text>
             </View>
         );
     };
@@ -460,21 +467,21 @@ const FriendScreen = () => {
 
     const emptyText = useMemo(() => {
         if (activeTab === 'friends') {
-            return 'No friends yet';
+            return t('friends.emptyFriends');
         }
 
         if (activeTab === 'requests') {
-            return 'No requests';
+            return t('friends.emptyRequests');
         }
 
-        return 'No pending requests';
-    }, [activeTab]);
+        return t('friends.emptyPending');
+    }, [activeTab, t]);
 
     return (
-        <AppLayout title="Friend" iconPosition="left" rightAction={rightAction}>
+        <AppLayout title={t('friends.title')} iconPosition="left" rightAction={rightAction}>
             <View style={styles.container}>
                 <View style={styles.tabs}>
-                    {TABS.map(tab => {
+                    {tabs.map(tab => {
                         const isActive = activeTab === tab.key;
 
                         return (
@@ -519,7 +526,7 @@ const FriendScreen = () => {
 
                 <TouchableOpacity style={styles.addButton} onPress={openAddFriendModal} activeOpacity={0.8}>
                     <Icon name="user-plus" size={scale.ms(16)} color="#FFFFFF" />
-                    <Text style={styles.addButtonText}>Add Friend</Text>
+                    <Text style={styles.addButtonText}>{t('friends.addFriend')}</Text>
                 </TouchableOpacity>
 
                 <Modal
@@ -534,9 +541,9 @@ const FriendScreen = () => {
                     >
                         <Pressable style={styles.modalBackdrop} onPress={closeAddFriendModal}>
                             <Pressable style={styles.modalSurface} onPress={() => undefined}>
-                                <Text style={styles.modalEyebrow}>Add Friend</Text>
+                                <Text style={styles.modalEyebrow}>{t('friends.addFriend')}</Text>
                                 <View style={styles.modalHeader}>
-                                    <Text style={styles.modalTitle}>Add Friend</Text>
+                                    <Text style={styles.modalTitle}>{t('friends.addFriend')}</Text>
                                     <TouchableOpacity
                                         style={styles.modalCloseButton}
                                         onPress={closeAddFriendModal}
@@ -551,7 +558,7 @@ const FriendScreen = () => {
                                     <TextInput
                                         value={candidateQuery}
                                         onChangeText={setCandidateQuery}
-                                        placeholder="Search username..."
+                                        placeholder={t('friends.searchPlaceholder')}
                                         placeholderTextColor="#A5AAA5"
                                         style={styles.modalSearchInput}
                                         returnKeyType="search"
@@ -569,7 +576,7 @@ const FriendScreen = () => {
                                     ) : candidateError ? (
                                         <Text style={styles.modalStateText}>{candidateError}</Text>
                                     ) : candidateLoaded && candidateResults.length === 0 ? (
-                                        <Text style={styles.modalStateText}>No matching users</Text>
+                                        <Text style={styles.modalStateText}>{t('friends.noMatches')}</Text>
                                     ) : (
                                         <FlatList
                                             data={candidateResults}
@@ -591,7 +598,7 @@ const FriendScreen = () => {
                                     disabled={!candidateQuery.trim() || candidateLoading}
                                 >
                                     <Text style={styles.modalSearchButtonText}>
-                                        {candidateLoading ? 'Searching' : 'Search'}
+                                        {t(candidateLoading ? 'friends.searching' : 'friends.search')}
                                     </Text>
                                 </TouchableOpacity>
                             </Pressable>

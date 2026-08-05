@@ -4,7 +4,8 @@
   "private": true,
   "packageManager": "yarn@1.22.22",
   "dependencies": {
-    "@abp/aspnetcore.mvc.ui.theme.leptonxlite": "~4.0.5"
+    "@abp/aspnetcore.mvc.ui.theme.leptonxlite": "~4.0.5",
+    "jquery": "3.7.1"
   },
   "resolutions": {
     "select2": "4.0.13"
