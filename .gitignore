@@ -301,3 +301,5 @@ temp_logs.txt
 *agents
 *.agents
 *.render
+*scripts
+*tmp
