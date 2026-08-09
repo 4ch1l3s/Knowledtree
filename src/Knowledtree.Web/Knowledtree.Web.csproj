@@ -65,7 +65,10 @@
   </ItemGroup>
 
 
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+  <Target
+    Name="PreBuild"
+    BeforeTargets="PreBuildEvent"
+    Condition="'$(SkipStartDatabase)' != 'true'">
     <Exec Command="call &quot;$(ProjectDir)..\start_db.bat&quot;" />
   </Target>
 

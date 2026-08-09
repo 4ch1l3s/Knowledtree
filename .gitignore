@@ -303,3 +303,5 @@ temp_logs.txt
 *.render
 *scripts
 *tmp
+*docs
+*work
