@@ -1,11 +1,12 @@
-// Kairos Garden backend chạy ở port 5000 (HTTP)
-const API_PORT = 5000;
+import { Platform } from 'react-native';
 
-// Emulator
-const API_HOST = '10.0.2.2';
+const DEVELOPMENT_API_BASE_URL = Platform.select({
+  android: 'http://10.0.2.2:5000',
+  default: 'http://localhost:5000',
+});
 
-// Physical device 
-// const API_HOST = '192.168.1.180';
+const STAGING_API_BASE_URL = 'https://kairosgarden-staging.onrender.com';
 
-
-export const API_BASE_URL = `http://${API_HOST}:${API_PORT}`;
+export const API_BASE_URL = __DEV__
+  ? DEVELOPMENT_API_BASE_URL
+  : STAGING_API_BASE_URL;

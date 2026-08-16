@@ -68,7 +68,7 @@
   <Target
     Name="PreBuild"
     BeforeTargets="PreBuildEvent"
-    Condition="'$(SkipStartDatabase)' != 'true'">
+    Condition="'$(OS)' == 'Windows_NT' and '$(SkipStartDatabase)' != 'true' and '$(SkipLocalDatabaseStart)' != 'true'">
     <Exec Command="call &quot;$(ProjectDir)..\start_db.bat&quot;" />
   </Target>
 
