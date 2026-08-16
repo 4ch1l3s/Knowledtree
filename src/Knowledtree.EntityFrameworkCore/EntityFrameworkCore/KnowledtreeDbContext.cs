@@ -1,3 +1,4 @@
+using Knowledtree.DailyMissions;
 using Knowledtree.Friendships;
 using Knowledtree.Tags;
 using Knowledtree.Trees;
@@ -51,6 +52,10 @@ public class KnowledtreeDbContext :
     public DbSet<UserTree> UserTrees { get; set; }
     public DbSet<UserSeedPackage> UserSeedPackages { get; set; }
     public DbSet<PlantingSession> PlantingSessions { get; set; }
+
+    // Daily mission pool and per-user daily assignments
+    public DbSet<DailyMission> DailyMissions { get; set; }
+    public DbSet<UserDailyMission> UserDailyMissions { get; set; }
 
     #region Entities from the modules
 
@@ -286,6 +291,60 @@ public class KnowledtreeDbContext :
             b.HasIndex(x => x.ResultTreeId);
             b.HasIndex(x => x.TagId);
             b.HasIndex(x => x.Status);
+        });
+
+        builder.Entity<DailyMission>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "DailyMissions", KnowledtreeConsts.DbSchema, t =>
+            {
+                t.HasCheckConstraint("CK_DailyMission_TargetValue_Positive", "\"TargetValue\" > 0");
+                t.HasCheckConstraint("CK_DailyMission_RewardAmount_Positive", "\"RewardAmount\" > 0");
+                t.HasCheckConstraint("CK_DailyMission_RewardType", "\"RewardType\" IN (0, 1)");
+            });
+            b.ConfigureByConvention();
+
+            b.Property(x => x.Name).IsRequired().HasMaxLength(DailyMissionConsts.MaxNameLength);
+            b.Property(x => x.Description).HasMaxLength(DailyMissionConsts.MaxDescriptionLength);
+            b.Property(x => x.MissionType).IsRequired();
+            b.Property(x => x.TargetValue).IsRequired();
+            b.Property(x => x.RewardType).IsRequired();
+            b.Property(x => x.RewardAmount).IsRequired();
+            b.Property(x => x.IsActive).IsRequired();
+
+            b.HasIndex(x => new { x.IsActive, x.RewardType });
+        });
+
+        builder.Entity<UserDailyMission>(b =>
+        {
+            b.ToTable(KnowledtreeConsts.DbTablePrefix + "UserDailyMissions", KnowledtreeConsts.DbSchema, t =>
+            {
+                t.HasCheckConstraint("CK_UserDailyMission_Slot", "\"Slot\" BETWEEN 1 AND 3");
+                t.HasCheckConstraint("CK_UserDailyMission_Progress_NonNegative", "\"Progress\" >= 0");
+                t.HasCheckConstraint("CK_UserDailyMission_TargetValue_Positive", "\"TargetValue\" > 0");
+                t.HasCheckConstraint("CK_UserDailyMission_RewardAmount_Positive", "\"RewardAmount\" > 0");
+                t.HasCheckConstraint("CK_UserDailyMission_RewardType", "\"RewardType\" IN (0, 1)");
+            });
+            b.ConfigureByConvention();
+
+            b.Property(x => x.UserId).IsRequired();
+            b.Property(x => x.MissionDate).IsRequired().HasColumnType("date");
+            b.Property(x => x.Slot).IsRequired();
+            b.Property(x => x.MissionName).IsRequired().HasMaxLength(DailyMissionConsts.MaxNameLength);
+            b.Property(x => x.MissionDescription).HasMaxLength(DailyMissionConsts.MaxDescriptionLength);
+            b.Property(x => x.MissionType).IsRequired();
+            b.Property(x => x.TargetValue).IsRequired();
+            b.Property(x => x.RewardType).IsRequired();
+            b.Property(x => x.RewardAmount).IsRequired();
+            b.Property(x => x.Progress).IsRequired().HasDefaultValue(0);
+            b.Property(x => x.IsCompleted).IsRequired().HasDefaultValue(false);
+            b.Property(x => x.IsClaimed).IsRequired().HasDefaultValue(false);
+
+            b.HasOne<IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            b.HasOne<DailyMission>().WithMany().HasForeignKey(x => x.DailyMissionId).OnDelete(DeleteBehavior.SetNull);
+
+            b.HasIndex(x => new { x.UserId, x.MissionDate, x.Slot }).IsUnique();
+            b.HasIndex(x => x.DailyMissionId);
+            b.HasIndex(x => new { x.UserId, x.MissionDate });
         });
     }
 }

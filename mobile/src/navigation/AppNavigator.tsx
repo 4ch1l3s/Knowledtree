@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,6 +14,8 @@ import ShopScreen from '../screens/ShopScreen';
 import TreepediaScreen from '../screens/TreepediaScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import DailyMissionsScreen from '../screens/DailyMissionsScreen';
+import { getTodayDailyMissions } from '../api/dailyMissions';
 
 // Define the parameter list for the stack navigator
 export type RootStackParamList = {
@@ -28,12 +30,20 @@ export type RootStackParamList = {
     Friend: undefined;
     History: undefined;
     Settings: undefined;
+    DailyMissions: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
     const { isLoading, userToken } = useContext(AuthContext);
+
+    useEffect(() => {
+        if (userToken) {
+            // Assignment is lazy and idempotent: opening the authenticated app creates today's three missions.
+            getTodayDailyMissions().catch(() => undefined);
+        }
+    }, [userToken]);
 
     if (isLoading) {
         return (
@@ -62,6 +72,7 @@ const AppNavigator = () => {
                         <Stack.Screen name="Friend" component={FriendScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="History" component={HistoryScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="DailyMissions" component={DailyMissionsScreen} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>

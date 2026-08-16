@@ -1,0 +1,175 @@
+@page "/DailyMissions"
+@using Knowledtree.DailyMissions
+@using Knowledtree.Web.Pages.DailyMissions
+@model Knowledtree.Web.Pages.DailyMissions.IndexModel
+
+<style>
+    .kt-mission-table th { color: #6b7280; font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .kt-mission-table td { vertical-align: middle; }
+    .kt-mission-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: .3rem .65rem; font-size: .76rem; font-weight: 700; }
+    .kt-mission-gold { color: #854d0e; background: #fef3c7; border: 1px solid #facc15; }
+    .kt-mission-gem { color: #075985; background: #e0f2fe; border: 1px solid #7dd3fc; }
+    .kt-mission-active { color: #166534; background: #dcfce7; border: 1px solid #86efac; }
+    .kt-mission-inactive { color: #4b5563; background: #f3f4f6; border: 1px solid #d1d5db; }
+    .kt-mission-actions { display: flex; justify-content: flex-end; gap: .5rem; }
+</style>
+
+<abp-card>
+    <abp-card-header>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h2 class="mb-1">@L["Menu:DailyMissions"]</h2>
+                <p class="text-muted mb-0">@L["Web:DailyMissionsSubtitle"]</p>
+            </div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createDailyMissionModal">
+                <i class="fa fa-plus me-1"></i> @L["Web:NewDailyMission"]
+            </button>
+        </div>
+    </abp-card-header>
+    <abp-card-body>
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        <div class="alert @(Model.PoolIsReady ? "alert-success" : "alert-warning") d-flex align-items-center justify-content-between">
+            <span>
+                <strong>@L["Web:PoolReadiness"]</strong>
+                @L["Web:PoolReadinessCounts", Model.ActiveGoldCount, Model.ActiveGemCount]
+            </span>
+            <span class="badge @(Model.PoolIsReady ? "bg-success" : "bg-warning text-dark")">
+                @(Model.PoolIsReady ? L["Web:PoolReady"].Value : L["Web:PoolNeedsMissions"].Value)
+            </span>
+        </div>
+
+        @if (Model.Missions.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="fa fa-list-check fa-3x mb-3"></i>
+                <div>@L["Web:NoDailyMissions"]</div>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover kt-mission-table">
+                    <thead>
+                    <tr>
+                        <th>@L["Name"]</th>
+                        <th>@L["Web:MissionType"]</th>
+                        <th>@L["Web:TargetValue"]</th>
+                        <th>@L["Web:Reward"]</th>
+                        <th>@L["Web:Status"]</th>
+                        <th class="text-end">@L["Actions"]</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var mission in Model.Missions)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@mission.Name</div>
+                                <div class="text-muted small">@mission.Description</div>
+                            </td>
+                            <td>@L[$"DailyMissionType:{mission.MissionType}"]</td>
+                            <td><strong>@mission.TargetValue</strong></td>
+                            <td>
+                                <span class="kt-mission-badge @(mission.RewardType == DailyMissionRewardType.Gold ? "kt-mission-gold" : "kt-mission-gem")">
+                                    @mission.RewardAmount @L[$"DailyMissionRewardType:{mission.RewardType}"]
+                                </span>
+                            </td>
+                            <td>
+                                <span class="kt-mission-badge @(mission.IsActive ? "kt-mission-active" : "kt-mission-inactive")">
+                                    @(mission.IsActive ? L["Active"].Value : L["Inactive"].Value)
+                                </span>
+                            </td>
+                            <td>
+                                <div class="kt-mission-actions">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editDailyMissionModal-@mission.Id">
+                                        <i class="fa fa-edit me-1"></i> @L["Edit"]
+                                    </button>
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@mission.Id">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('@L["Web:DeleteDailyMissionConfirm"]');">
+                                            <i class="fa fa-trash me-1"></i> @L["Delete"]
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </abp-card-body>
+</abp-card>
+
+<div class="modal fade" id="createDailyMissionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Create">
+                <div class="modal-header">
+                    <h5 class="modal-title">@L["Web:NewDailyMission"]</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@L["Close"]"></button>
+                </div>
+                <div class="modal-body">
+                    @if (Model.OpenModalId == "createDailyMissionModal")
+                    {
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+                    }
+                    <partial name="_DailyMissionFormFields" model="@(new DailyMissionFormViewModel
+                    {
+                        Prefix = "CreateInput",
+                        Input = Model.OpenModalId == "createDailyMissionModal" ? Model.CreateInput : null,
+                        MissionTypes = Model.MissionTypes,
+                        RewardTypes = Model.RewardTypes
+                    })" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                    <button type="submit" class="btn btn-primary">@L["Create"]</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@foreach (var mission in Model.Missions)
+{
+    <div class="modal fade" id="editDailyMissionModal-@mission.Id" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="Update" asp-route-id="@mission.Id">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@L["Web:EditDailyMission"]</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@L["Close"]"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (Model.OpenModalId == $"editDailyMissionModal-{mission.Id}")
+                        {
+                            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+                        }
+                        <partial name="_DailyMissionFormFields" model="@(new DailyMissionFormViewModel
+                        {
+                            Prefix = "UpdateInput",
+                            Mission = mission,
+                            Input = Model.OpenModalId == $"editDailyMissionModal-{mission.Id}" ? Model.UpdateInput : null,
+                            MissionTypes = Model.MissionTypes,
+                            RewardTypes = Model.RewardTypes
+                        })" />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">@L["Cancel"]</button>
+                        <button type="submit" class="btn btn-primary">@L["Save"]</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const openModalId = '@Model.OpenModalId';
+        if (!openModalId || !window.bootstrap) return;
+        const modalElement = document.getElementById(openModalId);
+        if (modalElement) bootstrap.Modal.getOrCreateInstance(modalElement).show();
+    });
+</script>

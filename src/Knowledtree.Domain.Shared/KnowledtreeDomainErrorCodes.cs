@@ -28,4 +28,11 @@ public static class KnowledtreeDomainErrorCodes
     public const string ReferencedTreePoolCannotBeDeleted = "Knowledtree:TreeStore:00014";
     public const string TagDoesNotBelongToCurrentUser = "Knowledtree:TreeStore:00015";
     public const string InvalidPlantingDuration = "Knowledtree:TreeStore:00016";
+
+    // Daily missions
+    public const string DailyMissionPoolInsufficient = "Knowledtree:DailyMission:00001";
+    public const string DailyMissionNotCompleted = "Knowledtree:DailyMission:00002";
+    public const string DailyMissionAlreadyClaimed = "Knowledtree:DailyMission:00003";
+    public const string DailyMissionNotFound = "Knowledtree:DailyMission:00004";
+    public const string InvalidDailyMissionProgress = "Knowledtree:DailyMission:00005";
 }

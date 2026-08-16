@@ -83,6 +83,16 @@ public class KnowledtreeMenuContributor : IMenuContributor
             }
         }
 
-        administration?.SetSubItemOrder(SettingManagementMenuNames.GroupName, 4);
+        if (administration != null && await permissionChecker.IsGrantedAsync(KnowledtreePermissions.DailyMissions.Default))
+        {
+            administration.AddItem(new ApplicationMenuItem(
+                KnowledtreeMenus.DailyMissions,
+                l["Menu:DailyMissions"],
+                "~/DailyMissions",
+                icon: "fas fa-tasks",
+                order: 4));
+        }
+
+        administration?.SetSubItemOrder(SettingManagementMenuNames.GroupName, 5);
     }
 }

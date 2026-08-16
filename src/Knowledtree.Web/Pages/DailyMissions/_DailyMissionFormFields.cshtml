@@ -1,0 +1,50 @@
+@using Knowledtree.DailyMissions
+@model Knowledtree.Web.Pages.DailyMissions.DailyMissionFormViewModel
+
+<div class="row">
+    <div class="col-md-7 mb-3">
+        <label class="form-label" for="@Model.Prefix-Name">@L["Name"]</label>
+        <input id="@Model.Prefix-Name" name="@(Model.Prefix + ".Name")" value="@Model.Name" class="form-control" maxlength="100" required />
+    </div>
+    <div class="col-md-5 mb-3">
+        <label class="form-label" for="@Model.Prefix-MissionType">@L["Web:MissionType"]</label>
+        <select id="@Model.Prefix-MissionType" name="@(Model.Prefix + ".MissionType")" class="form-select">
+            @foreach (var missionType in Model.MissionTypes)
+            {
+                <option value="@((int)missionType)" selected="@(Model.MissionType == missionType)">@L[$"DailyMissionType:{missionType}"]</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label class="form-label" for="@Model.Prefix-Description">@L["Description"]</label>
+    <textarea id="@Model.Prefix-Description" name="@(Model.Prefix + ".Description")" class="form-control" maxlength="500" rows="2">@Model.Description</textarea>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-TargetValue">@L["Web:TargetValue"]</label>
+        <input id="@Model.Prefix-TargetValue" name="@(Model.Prefix + ".TargetValue")" value="@Model.TargetValue" type="number" min="1" class="form-control" required />
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-RewardType">@L["Web:RewardType"]</label>
+        <select id="@Model.Prefix-RewardType" name="@(Model.Prefix + ".RewardType")" class="form-select">
+            @foreach (var rewardType in Model.RewardTypes)
+            {
+                <option value="@((int)rewardType)" selected="@(Model.RewardType == rewardType)">@L[$"DailyMissionRewardType:{rewardType}"]</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3 mb-3">
+        <label class="form-label" for="@Model.Prefix-RewardAmount">@L["Web:RewardAmount"]</label>
+        <input id="@Model.Prefix-RewardAmount" name="@(Model.Prefix + ".RewardAmount")" value="@Model.RewardAmount" type="number" min="1" class="form-control" required />
+    </div>
+    <div class="col-md-3 mb-3 d-flex align-items-end">
+        <div class="form-check form-switch mb-2">
+            <input id="@Model.Prefix-IsActive" name="@(Model.Prefix + ".IsActive")" value="true" type="checkbox" class="form-check-input" checked="@Model.IsActive" />
+            <input name="@(Model.Prefix + ".IsActive")" value="false" type="hidden" />
+            <label class="form-check-label" for="@Model.Prefix-IsActive">@L["Active"]</label>
+        </div>
+    </div>
+</div>

@@ -21,4 +21,13 @@ public class TreeManagement_Tests : KnowledtreeWebTestBase
 
         response.ShouldContain("Treepools");
     }
+
+    [Fact]
+    public async Task DailyMissions_Page()
+    {
+        var response = await GetResponseAsStringAsync("/DailyMissions");
+
+        response.ShouldContain("Daily Missions");
+        response.ShouldContain("Complete 1 focus session");
+    }
 }

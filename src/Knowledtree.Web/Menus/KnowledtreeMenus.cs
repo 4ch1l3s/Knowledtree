@@ -7,6 +7,7 @@ public class KnowledtreeMenus
     public const string TreeManagement = Prefix + ".TreeManagement";
     public const string Trees = TreeManagement + ".Trees";
     public const string TreePools = TreeManagement + ".TreePools";
+    public const string DailyMissions = Prefix + ".DailyMissions";
 
     //Add your menu items here...
 

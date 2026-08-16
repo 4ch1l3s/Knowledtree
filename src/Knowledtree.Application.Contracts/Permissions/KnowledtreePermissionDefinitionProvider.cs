@@ -61,6 +61,22 @@ public class KnowledtreePermissionDefinitionProvider : PermissionDefinitionProvi
         treePoolsPermission.AddChild(
             KnowledtreePermissions.TreeManagement.TreePools.ManageItems,
             L("Permission:TreeManagement.TreePools.ManageItems"));
+
+        var dailyMissionsPermission = myGroup.AddPermission(
+            KnowledtreePermissions.DailyMissions.Default,
+            L("Permission:DailyMissions"));
+
+        dailyMissionsPermission.AddChild(
+            KnowledtreePermissions.DailyMissions.Create,
+            L("Permission:DailyMissions.Create"));
+
+        dailyMissionsPermission.AddChild(
+            KnowledtreePermissions.DailyMissions.Update,
+            L("Permission:DailyMissions.Update"));
+
+        dailyMissionsPermission.AddChild(
+            KnowledtreePermissions.DailyMissions.Delete,
+            L("Permission:DailyMissions.Delete"));
     }
 
     private static LocalizableString L(string name)

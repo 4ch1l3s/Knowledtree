@@ -32,4 +32,12 @@ public static class KnowledtreePermissions
             public const string ManageItems = Default + ".ManageItems";
         }
     }
+
+    public static class DailyMissions
+    {
+        public const string Default = GroupName + ".DailyMissions";
+        public const string Create = Default + ".Create";
+        public const string Update = Default + ".Update";
+        public const string Delete = Default + ".Delete";
+    }
 }

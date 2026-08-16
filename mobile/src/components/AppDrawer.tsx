@@ -131,6 +131,14 @@ const AppDrawer: React.FC<AppDrawerProps> = ({ isVisible, onClose, onLogout }) =
                             </TouchableOpacity>
 
                             <TouchableOpacity
+                                style={[styles.menuItem, route.name === 'DailyMissions' && { backgroundColor: '#DDFBEA' }]}
+                                onPress={() => { onClose(); navigation.navigate('DailyMissions'); }}
+                            >
+                                <FontAwesome name="tasks" size={scale.ms(16)} color={route.name === 'DailyMissions' ? "#157A42" : "#4A5A4D"} style={styles.menuIcon} />
+                                <Text style={[styles.menuText, { color: route.name === 'DailyMissions' ? '#157A42' : '#4A5A4D', fontWeight: route.name === 'DailyMissions' ? 'bold' : '500' }]}>{t('nav.dailyMissions')}</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
                                 style={[styles.menuItem, route.name === 'Shop' && { backgroundColor: '#DDFBEA' }]}
                                 onPress={() => { onClose(); navigation.navigate('Shop'); }}
                             >
