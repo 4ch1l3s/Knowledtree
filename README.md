@@ -1,34 +1,34 @@
-## Giới thiệu dự án
-Dự án **Kairos Garden** là một ứng dụng hỗ trợ tập trung, được xây dựng dựa trên kiến trúc Domain Driven Design (DDD) của ABP Framework.
+# Kairos Garden
 
-### Bối cảnh & Mục tiêu
-Respository này được thiết kế để phục vụ các mục đích chính trong cùng một codebase (monorepo):
-1.  **Web Admin Portal**: Trang quản trị dành cho người quản lý hệ thống (được xây dựng sẵn trên nền tảng MVC/Razor Pages của ABP).
-2.  **Mobile App Backend**: Cung cấp hệ thống API và bảo mật để phục vụ cho ứng dụng Mobile.
-3.  **Mobile App**: Ứng dụng Mobile được phát triển bằng **React Native** và **TypeScript**, được đặt trong cùng repository.
+## Giới thiệu
 
-## Cấu hình đã được tùy chỉnh
-Để thuận tiện cho quá trình phát triển, dự án đã được tích hợp sẵn các công cụ tự động:
-*   **Tự động bật Database**: File `start_db.bat` sẽ tự động chạy khi **F5** (Run) trong Visual Studio, giúp bật PostgreSQL Portable.
-*   **Tự động Reset Mật khẩu Admin**: Mỗi khi chạy Migration, mật khẩu của tài khoản `admin` sẽ được đặt lại về mặc định.
+**Kairos Garden** là đồ án tốt nghiệp xây dựng một ứng dụng hỗ trợ người dùng tập trung và duy trì thói quen. Hệ thống gồm ứng dụng di động dành cho người dùng và trang web dành cho quản trị viên.
 
-### Thông tin đăng nhập mặc định (Phòng trường hợp người viết README quên)
-*   **Username**: `admin`
-*   **Password**: `V****************39@` (Đã được cấu hình tự động reset)
-*   Mật khẩu có 1 ký tự @
-*   Mật khẩu có 1 ký tự @
-*   Mật khẩu có 1 ký tự @
-*   Quan trọng nhắc lại 3 lần, gửi tới tôi ở tương lai, đừng có reset database vì mật khẩu mặc định
+## Công nghệ sử dụng
 
-## Hướng dẫn chạy dự án
-1. Khởi động server: "net start postgresql-x64-16" (Server side)
-2. Khởi động backend trong VS (Server side)
-3. 6 (Vị trí danh dự)
-4. CD vào vị trí mobile/android, kết nối tới thiết bị test, kiểm tra trạng thái thiết bị "adb devices" (Client side)
-5. Khởi động ứng dụng "npm run android" (Client side)
-6. Nếu gặp lỗi, spam vào terminal:
-- "npm start -- --reset-cache"
-- "cd android
-./gradlew clean
-cd .."
-Trường hợp ở android sẵn rồi thì ko cần cd, chỉ cần clean là được
+- **Backend và trang quản trị:** ASP.NET Core trên .NET 9, ABP Framework.
+- **Cơ sở dữ liệu:** PostgreSQL 16 và Entity Framework Core (tích hợp sẵn trong ABP Framework).
+- **Ứng dụng di động:** React Native 0.83 và TypeScript.
+
+## Điều kiện cần để cài đặt
+
+### Backend và trang quản trị
+
+- Windows 10+.
+- Git để tải mã nguồn từ GitHub.
+- .NET SDK 9.
+- Visual Studio 2022 đã cài workload **ASP.NET and web development**. Có thể dùng công cụ khác hỗ trợ .NET 9 nếu không sử dụng Visual Studio.
+- PostgreSQL 16. Dữ liệu demo trong thư mục `data_db` được tạo bằng phiên bản này.
+- Kết nối Internet trong lần đầu để tải các thư viện cần thiết.
+
+### Ứng dụng Android
+
+Ngoài các công cụ dành cho backend, cần cài thêm:
+
+- Node.js 20 trở lên; npm được cài kèm Node.js.
+- Android Studio.
+- Android SDK 36 và Android Build Tools 36.
+- JDK 17 trở lên.
+- Máy ảo Android hoặc điện thoại Android đã bật chế độ gỡ lỗi USB.
+
+Nếu chỉ chạy backend và trang quản trị thì không cần cài Node.js, Android Studio hoặc Android SDK.

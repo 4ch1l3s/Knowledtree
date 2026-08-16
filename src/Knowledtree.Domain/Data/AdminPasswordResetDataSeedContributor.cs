@@ -1,24 +1,39 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Identity;
-using Volo.Abp.Guids;
 
 namespace Knowledtree.Data;
 
 public class AdminPasswordResetDataSeedContributor : IDataSeedContributor, ITransientDependency
 {
     private readonly IdentityUserManager _userManager;
+    private readonly IConfiguration _configuration;
 
     public AdminPasswordResetDataSeedContributor(
-        IdentityUserManager userManager)
+        IdentityUserManager userManager,
+        IConfiguration configuration)
     {
         _userManager = userManager;
+        _configuration = configuration;
     }
 
     public async Task SeedAsync(DataSeedContext context)
     {
+        if (!_configuration.GetValue<bool>("AdminPasswordReset:Enabled"))
+        {
+            return;
+        }
+
+        var newPassword = _configuration["AdminPasswordReset:Password"];
+        if (string.IsNullOrWhiteSpace(newPassword))
+        {
+            throw new InvalidOperationException(
+                "AdminPasswordReset:Password must be configured when admin password reset is enabled.");
+        }
+
         var adminUser = await _userManager.FindByNameAsync("admin");
         if (adminUser != null)
         {
@@ -29,7 +44,7 @@ public class AdminPasswordResetDataSeedContributor : IDataSeedContributor, ITran
             }
 
             // Set new password
-            var result = await _userManager.AddPasswordAsync(adminUser, "Vu050739@");
+            var result = await _userManager.AddPasswordAsync(adminUser, newPassword);
             
             if (!result.Succeeded)
             {
