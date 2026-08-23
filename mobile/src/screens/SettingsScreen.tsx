@@ -13,6 +13,7 @@ import { useTheme } from '../theme';
 import type { Theme } from '../theme';
 import { scale } from '../utils/scale';
 import { AppLanguage, useLocalization } from '../localization';
+import { useStrictMode } from '../context/StrictModeContext';
 
 type ThemePreference = 'Light' | 'Dark' | 'System';
 
@@ -27,6 +28,7 @@ interface SectionHeaderProps {
 interface SettingRowProps {
     icon: string;
     title: string;
+    description?: string;
     children: React.ReactNode;
     isLast?: boolean;
     theme: Theme;
@@ -38,7 +40,7 @@ const SectionHeader = ({ title, theme }: SectionHeaderProps) => (
     </View>
 );
 
-const SettingRow = ({ icon, title, children, isLast = false, theme }: SettingRowProps) => (
+const SettingRow = ({ icon, title, description, children, isLast = false, theme }: SettingRowProps) => (
     <View
         style={[
             styles.settingRow,
@@ -51,6 +53,11 @@ const SettingRow = ({ icon, title, children, isLast = false, theme }: SettingRow
         </View>
         <View style={styles.settingCopy}>
             <Text style={[styles.settingTitle, { color: theme.colors.text }]}>{title}</Text>
+            {description ? (
+                <Text style={[styles.settingDescription, { color: theme.colors.textSecondary }]}>
+                    {description}
+                </Text>
+            ) : null}
         </View>
         {children}
     </View>
@@ -59,6 +66,7 @@ const SettingRow = ({ icon, title, children, isLast = false, theme }: SettingRow
 const SettingsScreen = () => {
     const { theme } = useTheme();
     const { language, setLanguage, t } = useLocalization();
+    const { strictModeEnabled, setStrictModeEnabled } = useStrictMode();
     const [dailyReminder, setDailyReminder] = useState(true);
     const [completionSound, setCompletionSound] = useState(true);
     const [vibration, setVibration] = useState(true);
@@ -113,10 +121,18 @@ const SettingsScreen = () => {
                     <SettingRow
                         icon="mobile"
                         title={t('settings.vibration')}
-                        isLast
                         theme={theme}
                     >
                         {renderSwitch(vibration, setVibration)}
+                    </SettingRow>
+                    <SettingRow
+                        icon="shield"
+                        title={t('settings.strictMode')}
+                        description={t('settings.strictModeDescription')}
+                        isLast
+                        theme={theme}
+                    >
+                        {renderSwitch(strictModeEnabled, setStrictModeEnabled)}
                     </SettingRow>
                 </View>
 
@@ -250,6 +266,12 @@ const styles = StyleSheet.create({
     settingTitle: {
         fontSize: scale.ms(14),
         fontWeight: '600',
+    },
+    settingDescription: {
+        marginTop: scale.vs(3),
+        fontSize: scale.ms(10),
+        fontWeight: '500',
+        lineHeight: scale.ms(14),
     },
     reminderTimeRow: {
         minHeight: scale.vs(49),

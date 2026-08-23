@@ -9,6 +9,7 @@ import {
     Image,
     KeyboardAvoidingView,
     Modal,
+    NativeModules,
     PanResponder,
     Platform,
     Pressable,
@@ -47,9 +48,11 @@ import {
 import { resolveSeedPackageImage } from '../utils/seedPackageAssets';
 import { getRarityColor, resolveTreeImage } from '../utils/treeAssets';
 import { useLocalization } from '../localization';
+import { useStrictMode } from '../context/StrictModeContext';
 
 const dirtAsset = require('../assets/dirt-asset.png');
 const minorTreeAsset = require('../assets/trees/asset_minor_tree.png');
+const { ScreenAwake } = NativeModules;
 
 const STEP_MINUTES = 5;
 const MIN_MINUTES = 30;
@@ -73,7 +76,10 @@ const ACTIVE_PLANTING_SESSION_CODE = 'Knowledtree:TreeStore:00010';
 const PLANTING_SESSION_NOT_READY_CODE = 'Knowledtree:TreeStore:00012';
 const ACTIVE_SESSION_ID_KEY = '@knowledtree/activePlantingSessionId';
 const PENDING_FAILED_SESSION_ID_KEY = '@knowledtree/pendingFailedPlantingSessionId';
-let guardedSessionIdThisRuntime: string | null = null;
+const ACTIVE_SESSION_STRICT_MODE_KEY = '@knowledtree/activePlantingSessionStrictMode';
+const STRICT_FOCUS_LOST_AT_KEY = '@knowledtree/strictFocusLostAt';
+const STRICT_MODE_WARNING_MS = 30_000;
+const STRICT_MODE_FAILURE_MS = 60_000;
 const TAG_COLORS = [
     '#3B6B3B',
     '#E85D5D',
@@ -97,6 +103,16 @@ const formatFocusTime = (totalSeconds: number) => {
 const getPlannedFocusDurationSeconds = (plannedDurationMinutes: number) => (
     plannedDurationMinutes * 60
 );
+
+const getSessionEndTimeMs = (session: PlantingSessionDto) => (
+    new Date(session.serverStartTime).getTime() + session.requiredFocusDurationSeconds * 1000
+);
+
+const getStrictFocusLossDuration = (
+    session: PlantingSessionDto,
+    focusLostAt: number,
+    now = Date.now(),
+) => Math.max(0, Math.min(now, getSessionEndTimeMs(session)) - focusLostAt);
 
 const getErrorMessage = (
     error: any,
@@ -122,11 +138,12 @@ const isPlantingSessionNotReadyError = (error: any) => (
 
 const isFailEndpointUnavailableError = (error: any) => error?.response?.status === 405;
 
-const persistActiveSessionGuard = async (sessionId: string) => {
-    guardedSessionIdThisRuntime = sessionId;
+const persistActiveSessionGuard = async (sessionId: string, strictModeEnabled: boolean) => {
     await AsyncStorage.multiSet([
         [ACTIVE_SESSION_ID_KEY, sessionId],
         [PENDING_FAILED_SESSION_ID_KEY, ''],
+        [ACTIVE_SESSION_STRICT_MODE_KEY, String(strictModeEnabled)],
+        [STRICT_FOCUS_LOST_AT_KEY, ''],
     ]);
 };
 
@@ -135,10 +152,11 @@ const persistPendingSessionFailure = async (sessionId: string) => {
 };
 
 const clearPersistedSessionGuard = async () => {
-    guardedSessionIdThisRuntime = null;
     await AsyncStorage.multiRemove([
         ACTIVE_SESSION_ID_KEY,
         PENDING_FAILED_SESSION_ID_KEY,
+        ACTIVE_SESSION_STRICT_MODE_KEY,
+        STRICT_FOCUS_LOST_AT_KEY,
     ]);
 };
 
@@ -146,6 +164,7 @@ const GrowTreeScreen = () => {
     const navigation = useNavigation<any>();
     const { theme } = useTheme();
     const { t } = useLocalization();
+    const { strictModeEnabled, strictModeReady } = useStrictMode();
     const { height, width } = useWindowDimensions();
     const isShortScreen = height < 760;
     const seedGridGap = scale.s(14);
@@ -177,6 +196,11 @@ const GrowTreeScreen = () => {
     const [creatingTag, setCreatingTag] = useState(false);
     const [activeSession, setActiveSession] = useState<PlantingSessionDto | null>(null);
     const activeSessionRef = useRef<PlantingSessionDto | null>(null);
+    const [activeSessionStrictMode, setActiveSessionStrictMode] = useState(false);
+    const activeSessionStrictModeRef = useRef(false);
+    const [strictFocusLostAt, setStrictFocusLostAt] = useState<number | null>(null);
+    const strictFocusLostAtRef = useRef<number | null>(null);
+    const [strictModeWarningVisible, setStrictModeWarningVisible] = useState(false);
     const seedlingGrowthProgress = useRef(new Animated.Value(0)).current;
     const isFailingSessionRef = useRef(false);
     const failErrorAlertSessionIdRef = useRef<string | null>(null);
@@ -210,7 +234,9 @@ const GrowTreeScreen = () => {
         || isStartingSession
         || isCompletingSession
         || isFailingSession;
-    const isPrimaryActionDisabled = isPrimaryActionBusy || (!!activeSession && !isReadyToClaim);
+    const isPrimaryActionDisabled = !strictModeReady
+        || isPrimaryActionBusy
+        || (!!activeSession && !isReadyToClaim);
     const primaryActionIcon = activeSession
         ? (isReadyToClaim ? 'gift' : 'lock')
         : 'play';
@@ -220,6 +246,16 @@ const GrowTreeScreen = () => {
 
     useEffect(() => {
         activeSessionRef.current = activeSession;
+    }, [activeSession]);
+
+    useEffect(() => {
+        if (Platform.OS !== 'android' || !ScreenAwake) {
+            return undefined;
+        }
+
+        ScreenAwake.setKeepScreenOn(!!activeSession);
+
+        return () => ScreenAwake.setKeepScreenOn(false);
     }, [activeSession]);
 
     useEffect(() => {
@@ -248,8 +284,7 @@ const GrowTreeScreen = () => {
         }
 
         const updateRemaining = () => {
-            const serverStartMs = new Date(activeSession.serverStartTime).getTime();
-            const sessionEndMs = serverStartMs + activeSession.requiredFocusDurationSeconds * 1000;
+            const sessionEndMs = getSessionEndTimeMs(activeSession);
             const nextRemainingSeconds = Math.max(
                 0,
                 Math.ceil((sessionEndMs - Date.now()) / 1000),
@@ -440,18 +475,36 @@ const GrowTreeScreen = () => {
 
         if (!session) {
             await clearPersistedSessionGuard();
+            activeSessionStrictModeRef.current = false;
+            strictFocusLostAtRef.current = null;
+            setActiveSessionStrictMode(false);
+            setStrictFocusLostAt(null);
+            setStrictModeWarningVisible(false);
             return false;
         }
 
-        const [[, persistedActiveSessionId], [, pendingFailedSessionId]] = await AsyncStorage.multiGet([
+        const [
+            [, persistedActiveSessionId],
+            [, pendingFailedSessionId],
+            [, persistedStrictMode],
+            [, persistedFocusLostAt],
+        ] = await AsyncStorage.multiGet([
             ACTIVE_SESSION_ID_KEY,
             PENDING_FAILED_SESSION_ID_KEY,
+            ACTIVE_SESSION_STRICT_MODE_KEY,
+            STRICT_FOCUS_LOST_AT_KEY,
         ]);
+        const isPersistedSession = persistedActiveSessionId === session.id;
+        const sessionUsesStrictMode = isPersistedSession && persistedStrictMode === 'true';
+        const parsedFocusLostAt = isPersistedSession && persistedFocusLostAt
+            ? Number(persistedFocusLostAt)
+            : Number.NaN;
+        const focusLostAt = Number.isFinite(parsedFocusLostAt) ? parsedFocusLostAt : null;
+        const focusLostDuration = focusLostAt === null
+            ? 0
+            : getStrictFocusLossDuration(session, focusLostAt);
         const shouldFailRecoveredSession = pendingFailedSessionId === session.id
-            || (
-                persistedActiveSessionId === session.id
-                && guardedSessionIdThisRuntime !== session.id
-            );
+            || (sessionUsesStrictMode && focusLostDuration >= STRICT_MODE_FAILURE_MS);
 
         if (shouldFailRecoveredSession) {
             setIsFailingSession(true);
@@ -464,14 +517,24 @@ const GrowTreeScreen = () => {
                 });
                 await clearPersistedSessionGuard();
                 activeSessionRef.current = null;
+                activeSessionStrictModeRef.current = false;
+                strictFocusLostAtRef.current = null;
                 setRewardResult(null);
                 setActiveSession(null);
+                setActiveSessionStrictMode(false);
+                setStrictFocusLostAt(null);
+                setStrictModeWarningVisible(false);
                 setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
                 Alert.alert(t('grow.sessionFailed'), t('grow.sessionFailedMessage'));
             } catch (error: any) {
                 activeSessionRef.current = null;
+                activeSessionStrictModeRef.current = false;
+                strictFocusLostAtRef.current = null;
                 setRewardResult(null);
                 setActiveSession(null);
+                setActiveSessionStrictMode(false);
+                setStrictFocusLostAt(null);
+                setStrictModeWarningVisible(false);
                 setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
 
                 if (failErrorAlertSessionIdRef.current !== session.id) {
@@ -490,17 +553,32 @@ const GrowTreeScreen = () => {
             return false;
         }
 
-        await persistActiveSessionGuard(session.id);
+        await AsyncStorage.multiSet([
+            [ACTIVE_SESSION_ID_KEY, session.id],
+            [ACTIVE_SESSION_STRICT_MODE_KEY, String(sessionUsesStrictMode)],
+            [STRICT_FOCUS_LOST_AT_KEY, ''],
+        ]);
         setRewardResult(null);
         activeSessionRef.current = session;
+        activeSessionStrictModeRef.current = sessionUsesStrictMode;
+        strictFocusLostAtRef.current = null;
         setActiveSession(session);
+        setActiveSessionStrictMode(sessionUsesStrictMode);
+        setStrictFocusLostAt(null);
+        setStrictModeWarningVisible(
+            sessionUsesStrictMode && focusLostDuration >= STRICT_MODE_WARNING_MS,
+        );
         setRemainingSeconds(session.requiredFocusDurationSeconds);
         return true;
     }, [focusMinutes, t]);
 
     useEffect(() => {
+        if (!strictModeReady) {
+            return;
+        }
+
         resumeActiveSession().catch(() => undefined);
-    }, [resumeActiveSession]);
+    }, [resumeActiveSession, strictModeReady]);
 
     const failActiveSession = useCallback(async (
         session: PlantingSessionDto,
@@ -523,8 +601,13 @@ const GrowTreeScreen = () => {
         isFailingSessionRef.current = true;
         setIsFailingSession(true);
         activeSessionRef.current = null;
+        activeSessionStrictModeRef.current = false;
+        strictFocusLostAtRef.current = null;
         setRewardResult(null);
         setActiveSession(null);
+        setActiveSessionStrictMode(false);
+        setStrictFocusLostAt(null);
+        setStrictModeWarningVisible(false);
         setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
 
         try {
@@ -573,38 +656,95 @@ const GrowTreeScreen = () => {
     }, [failActiveSession, navigation]);
 
     useEffect(() => {
-        const failInterruptedSession = () => {
-            const session = activeSessionRef.current;
+        if (!activeSession || !activeSessionStrictMode || strictFocusLostAt === null) {
+            return undefined;
+        }
 
-            if (session) {
-                persistPendingSessionFailure(session.id).catch(() => undefined);
-            }
-        };
-        const failPendingSessionOnFocus = () => {
-            const session = activeSessionRef.current;
-
-            if (!session) {
+        const evaluateStrictFocusLoss = () => {
+            if (strictFocusLostAtRef.current !== strictFocusLostAt) {
                 return;
             }
 
-            AsyncStorage.getItem(PENDING_FAILED_SESSION_ID_KEY)
-                .then(pendingFailedSessionId => {
-                    if (pendingFailedSessionId === session.id) {
-                        failActiveSession(session, { showErrorAlert: false });
-                    }
-                })
+            const now = Date.now();
+            const elapsedMs = getStrictFocusLossDuration(activeSession, strictFocusLostAt, now);
+
+            if (elapsedMs >= STRICT_MODE_WARNING_MS) {
+                setStrictModeWarningVisible(true);
+            }
+
+            if (elapsedMs >= STRICT_MODE_FAILURE_MS) {
+                strictFocusLostAtRef.current = null;
+                setStrictFocusLostAt(null);
+                failActiveSession(activeSession);
+                return;
+            }
+
+            if (now >= getSessionEndTimeMs(activeSession)) {
+                strictFocusLostAtRef.current = null;
+                setStrictFocusLostAt(null);
+                AsyncStorage.removeItem(STRICT_FOCUS_LOST_AT_KEY).catch(() => undefined);
+            }
+        };
+
+        evaluateStrictFocusLoss();
+        const intervalId = setInterval(evaluateStrictFocusLoss, 1000);
+
+        return () => clearInterval(intervalId);
+    }, [activeSession, activeSessionStrictMode, failActiveSession, strictFocusLostAt]);
+
+    useEffect(() => {
+        const markStrictFocusLost = () => {
+            const session = activeSessionRef.current;
+
+            if (
+                !session
+                || !activeSessionStrictModeRef.current
+                || strictFocusLostAtRef.current !== null
+                || Date.now() >= getSessionEndTimeMs(session)
+            ) {
+                return;
+            }
+
+            const focusLostAt = Date.now();
+            strictFocusLostAtRef.current = focusLostAt;
+            setStrictFocusLostAt(focusLostAt);
+            AsyncStorage.setItem(STRICT_FOCUS_LOST_AT_KEY, String(focusLostAt))
                 .catch(() => undefined);
         };
-        const changeSubscription = AppState.addEventListener('change', nextAppState => {
-            if (nextAppState === 'active') {
-                failPendingSessionOnFocus();
+
+        const restoreStrictFocus = () => {
+            const session = activeSessionRef.current;
+            const focusLostAt = strictFocusLostAtRef.current;
+
+            if (!session || !activeSessionStrictModeRef.current || focusLostAt === null) {
                 return;
             }
 
-            failInterruptedSession();
+            strictFocusLostAtRef.current = null;
+            setStrictFocusLostAt(null);
+            AsyncStorage.removeItem(STRICT_FOCUS_LOST_AT_KEY).catch(() => undefined);
+
+            const elapsedMs = getStrictFocusLossDuration(session, focusLostAt);
+
+            if (elapsedMs >= STRICT_MODE_WARNING_MS) {
+                setStrictModeWarningVisible(true);
+            }
+
+            if (elapsedMs >= STRICT_MODE_FAILURE_MS) {
+                failActiveSession(session);
+            }
+        };
+
+        const changeSubscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') {
+                restoreStrictFocus();
+                return;
+            }
+
+            markStrictFocusLost();
         });
-        const blurSubscription = AppState.addEventListener('blur', failInterruptedSession);
-        const focusSubscription = AppState.addEventListener('focus', failPendingSessionOnFocus);
+        const blurSubscription = AppState.addEventListener('blur', markStrictFocusLost);
+        const focusSubscription = AppState.addEventListener('focus', restoreStrictFocus);
 
         return () => {
             changeSubscription.remove();
@@ -629,9 +769,14 @@ const GrowTreeScreen = () => {
                 clientStartTime: new Date().toISOString(),
             });
 
-            await persistActiveSessionGuard(session.id);
+            await persistActiveSessionGuard(session.id, strictModeEnabled);
             activeSessionRef.current = session;
+            activeSessionStrictModeRef.current = strictModeEnabled;
+            strictFocusLostAtRef.current = null;
             setActiveSession(session);
+            setActiveSessionStrictMode(strictModeEnabled);
+            setStrictFocusLostAt(null);
+            setStrictModeWarningVisible(false);
             setRemainingSeconds(session.requiredFocusDurationSeconds);
             decrementSelectedSeedPackage(session.treePoolId);
         } catch (error: any) {
@@ -651,6 +796,7 @@ const GrowTreeScreen = () => {
         resumeActiveSession,
         selectedSeedPackage,
         selectedTag,
+        strictModeEnabled,
         t,
     ]);
 
@@ -668,7 +814,9 @@ const GrowTreeScreen = () => {
         setIsStartConfirming(true);
         Alert.alert(
             t('grow.startConfirmTitle'),
-            t('grow.startConfirmMessage'),
+            t(strictModeEnabled
+                ? 'grow.startConfirmStrictMessage'
+                : 'grow.startConfirmMessage'),
             [
                 {
                     text: t('common.cancel'),
@@ -694,6 +842,7 @@ const GrowTreeScreen = () => {
         isStartConfirming,
         openSeedPicker,
         selectedSeedPackage,
+        strictModeEnabled,
         t,
     ]);
 
@@ -717,7 +866,12 @@ const GrowTreeScreen = () => {
             setRewardResult(result);
             await clearPersistedSessionGuard();
             activeSessionRef.current = null;
+            activeSessionStrictModeRef.current = false;
+            strictFocusLostAtRef.current = null;
             setActiveSession(null);
+            setActiveSessionStrictMode(false);
+            setStrictFocusLostAt(null);
+            setStrictModeWarningVisible(false);
             setRemainingSeconds(getPlannedFocusDurationSeconds(focusMinutes));
         } catch (error: any) {
             if (isPlantingSessionNotReadyError(error)) {
@@ -918,6 +1072,15 @@ const GrowTreeScreen = () => {
                     ]}>
                         {formatFocusTime(displaySeconds)}
                     </Text>
+
+                    {activeSession && activeSessionStrictMode && strictModeWarningVisible ? (
+                        <Text
+                            accessibilityLiveRegion="assertive"
+                            style={styles.strictModeWarningText}
+                        >
+                            {t('grow.strictModeWarning')}
+                        </Text>
+                    ) : null}
 
                     <View style={[
                         styles.spacer,
@@ -1447,6 +1610,15 @@ const styles = StyleSheet.create({
     },
     timerTextCompact: {
         marginTop: scale.vs(18),
+    },
+    strictModeWarningText: {
+        marginTop: scale.vs(10),
+        paddingHorizontal: scale.s(8),
+        color: '#C62828',
+        fontSize: scale.ms(12),
+        fontWeight: '700',
+        lineHeight: scale.ms(17),
+        textAlign: 'center',
     },
     spacer: {
         flex: 1,
