@@ -158,10 +158,15 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
     public virtual async Task<BuySeedPackagesResultDto> BuySeedPackagesAsync(BuySeedPackagesDto input)
     {
         var userId = CurrentUser.GetId();
+
+        // Mobile có thể gửi nhiều dòng trùng TreePoolId do người dùng bấm liên tục.
+        // Gom chúng lại trước để mỗi pool chỉ được kiểm tra và cập nhật một lần.
         var quantitiesByPoolId = AggregatePurchaseItems(input);
         var poolsById = new Dictionary<int, TreePool>();
         var now = Clock.Now;
 
+        // Kiểm tra toàn bộ batch trước khi trừ tiền: pool phải còn mở và có đủ cây để quay thưởng.
+        // Nếu một item không hợp lệ thì dừng cả batch, không mua dở một phần.
         foreach (var treePoolId in quantitiesByPoolId.Keys)
         {
             var pool = await _treePoolRepository.GetAsync(treePoolId);
@@ -195,11 +200,13 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
 
             if (!seedPackagesByPoolId.TryGetValue(treePoolId, out var seedPackage))
             {
+                // Người dùng chưa từng sở hữu hạt của pool này: tạo bản ghi mới.
                 seedPackage = new UserSeedPackage(GuidGenerator.Create(), userId, treePoolId, quantity);
                 await _seedPackageRepository.InsertAsync(seedPackage, autoSave: false);
             }
             else
             {
+                // Đã có bản ghi thì cộng dồn quantity vào gói hiện tại.
                 seedPackage.Add(quantity);
                 await _seedPackageRepository.UpdateAsync(seedPackage, autoSave: false);
             }
@@ -207,6 +214,8 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
             updatedSeedPackages.Add(MapSeedPackage(seedPackage, pool.Name, pool.PackageImageKey));
         }
 
+        // Các thay đổi gói hạt phía trên chưa SaveChanges riêng lẻ.
+        // Lần lưu này ghi ví và toàn bộ entity đang được theo dõi trong cùng unit of work.
         await _walletRepository.UpdateAsync(wallet, autoSave: true);
 
         return new BuySeedPackagesResultDto
@@ -274,6 +283,8 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
             }
 
             quantitiesByPoolId.TryGetValue(item.TreePoolId, out var currentQuantity);
+
+            // Tính bằng long trước để phát hiện tổng vượt giới hạn int khi có nhiều item trùng pool.
             var nextQuantity = (long)currentQuantity + item.Quantity;
             if (nextQuantity > int.MaxValue)
             {
@@ -303,6 +314,7 @@ public class StoreAppService : KnowledtreeAppService, IStoreAppService
                     continue;
                 }
 
+                // checked biến phép nhân/cộng bị tràn số thành exception thay vì cho ra số sai.
                 var cost = checked((long)pool.Cost * item.Value);
                 switch (pool.CurrencyType)
                 {

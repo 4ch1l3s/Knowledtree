@@ -16,6 +16,8 @@ export const StrictModeProvider = ({ children }: { children: React.ReactNode }) 
     const [strictModeReady, setStrictModeReady] = useState(false);
 
     useEffect(() => {
+        // Đọc cài đặt đã lưu trước khi cho phép bắt đầu phiên mới.
+        // strictModeReady giúp màn Grow Tree không dùng nhầm giá trị mặc định trong lúc đang tải.
         AsyncStorage.getItem(STRICT_MODE_STORAGE_KEY)
             .then(storedValue => setStrictModeEnabledState(storedValue === 'true'))
             .catch(() => undefined)
@@ -23,6 +25,7 @@ export const StrictModeProvider = ({ children }: { children: React.ReactNode }) 
     }, []);
 
     const setStrictModeEnabled = useCallback((enabled: boolean) => {
+        // Cập nhật giao diện ngay, sau đó lưu lựa chọn để lần mở app tiếp theo vẫn giữ nguyên.
         setStrictModeEnabledState(enabled);
         AsyncStorage.setItem(STRICT_MODE_STORAGE_KEY, String(enabled)).catch(() => undefined);
     }, []);

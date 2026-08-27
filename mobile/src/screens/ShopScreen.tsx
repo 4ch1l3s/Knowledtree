@@ -82,11 +82,15 @@ const canBuyPool = (pool: TreePoolDto, wallet: WalletDto | null) => {
 
 const getPurchaseQuantity = (purchases: PurchaseMap, treePoolId: number) => purchases[treePoolId] ?? 0;
 
+// Trả về object mới để React nhận ra dữ liệu đã thay đổi.
+// Nếu pool đã có trong hàng chờ thì cộng dồn số lượng thay vì tạo thêm một dòng mua riêng.
 const addPurchaseQuantity = (purchases: PurchaseMap, treePoolId: number, quantity: number): PurchaseMap => ({
     ...purchases,
     [treePoolId]: getPurchaseQuantity(purchases, treePoolId) + quantity,
 });
 
+// Sau khi một batch xử lý xong, chỉ xóa đúng số lượng thuộc batch đó.
+// Các lượt bấm mới phát sinh trong lúc request đang chạy vẫn được giữ lại cho batch tiếp theo.
 const subtractPurchaseQuantities = (purchases: PurchaseMap, batch: PurchaseMap): PurchaseMap => {
     const nextPurchases = { ...purchases };
 
@@ -138,6 +142,8 @@ const getEffectiveWallet = (
         return null;
     }
 
+    // Tiền của các lượt mua chưa gửi và đang gửi được xem là đã giữ chỗ.
+    // Nhờ vậy người dùng không thể bấm mua vượt quá số dư chỉ vì server chưa kịp phản hồi.
     const queuedCost = getReservedCost(queuedPurchases, poolsById);
     const inFlightCost = getReservedCost(inFlightPurchases, poolsById);
 
@@ -331,6 +337,8 @@ const ShopScreen = () => {
     const [inFlightPurchases, setInFlightPurchases] = useState<PurchaseMap>({});
     const [nowMs, setNowMs] = useState(Date.now());
 
+    // State dùng để cập nhật giao diện; ref giữ giá trị mới nhất ngay lập tức giữa các lần bấm nhanh.
+    // Nếu chỉ dùng state, nhiều lần bấm trước khi React render lại có thể cùng đọc dữ liệu cũ.
     const queuedPurchasesRef = useRef<PurchaseMap>({});
     const inFlightPurchasesRef = useRef<PurchaseMap>({});
     const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -415,6 +423,7 @@ const ShopScreen = () => {
     }, [clearFlushTimer]);
 
     const flushQueuedPurchases = useCallback(async () => {
+        // Chụp toàn bộ lượt mua đang chờ thành một batch để gửi trong cùng một request.
         const batch = queuedPurchasesRef.current;
         const items = Object.entries(batch)
             .map(([treePoolId, quantity]) => ({
@@ -427,9 +436,11 @@ const ShopScreen = () => {
             return;
         }
 
+        // Dọn hàng chờ trước khi gọi API. Lượt bấm mới từ thời điểm này sẽ đi vào batch kế tiếp.
         queuedPurchasesRef.current = {};
         setQueuedPurchases({});
 
+        // Đưa batch sang trạng thái đang gửi để giao diện vẫn giữ chỗ số tiền tương ứng.
         inFlightPurchasesRef.current = items.reduce<PurchaseMap>(
             (purchases, item) => addPurchaseQuantity(purchases, item.treePoolId, item.quantity),
             inFlightPurchasesRef.current,
@@ -443,6 +454,8 @@ const ShopScreen = () => {
                 {},
             );
 
+            // Request thành công: bỏ phần vừa xử lý khỏi danh sách đang gửi,
+            // sau đó đồng bộ số dư và số hạt theo dữ liệu chính thức từ server.
             inFlightPurchasesRef.current = subtractPurchaseQuantities(
                 inFlightPurchasesRef.current,
                 batchPurchases,
@@ -457,6 +470,8 @@ const ShopScreen = () => {
                     : pool;
             }));
         } catch (error: any) {
+            // Không tự đoán request đã mua được bao nhiêu khi có lỗi mạng.
+            // Xóa dữ liệu tạm và tải lại từ server để tránh hiển thị sai số dư/số hạt.
             resetPurchaseBuffers();
             Alert.alert(t('shop.purchaseErrorTitle'), getErrorMessage(error, t('shop.purchaseError')));
             await loadShop(false);
@@ -464,6 +479,8 @@ const ShopScreen = () => {
     }, [loadShop, resetPurchaseBuffers, t]);
 
     const schedulePurchaseFlush = useCallback(() => {
+        // Mỗi lần bấm sẽ gia hạn timer. Sau khi người dùng ngừng bấm 1 giây,
+        // tất cả lượt mua được gom lại và gửi bằng một API batch.
         clearFlushTimer();
         flushTimerRef.current = setTimeout(() => {
             flushTimerRef.current = null;
@@ -476,6 +493,7 @@ const ShopScreen = () => {
     }, [clearFlushTimer]);
 
     const handleBuy = useCallback((pool: TreePoolDto) => {
+        // Tính số dư có thể dùng sau khi trừ cả các lượt mua đang chờ và đang gửi.
         const currentEffectiveWallet = getEffectiveWallet(
             wallet,
             queuedPurchasesRef.current,

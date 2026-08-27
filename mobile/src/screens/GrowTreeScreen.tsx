@@ -112,7 +112,12 @@ const getStrictFocusLossDuration = (
     session: PlantingSessionDto,
     focusLostAt: number,
     now = Date.now(),
-) => Math.max(0, Math.min(now, getSessionEndTimeMs(session)) - focusLostAt);
+) => Math.max(
+    0,
+    // Chỉ tính thời gian mất tập trung trong lúc cây còn đang lớn;
+    // thời gian sau khi phiên đã hoàn tất không được dùng để đánh dấu thất bại.
+    Math.min(now, getSessionEndTimeMs(session)) - focusLostAt,
+);
 
 const getErrorMessage = (
     error: any,
@@ -139,6 +144,7 @@ const isPlantingSessionNotReadyError = (error: any) => (
 const isFailEndpointUnavailableError = (error: any) => error?.response?.status === 405;
 
 const persistActiveSessionGuard = async (sessionId: string, strictModeEnabled: boolean) => {
+    // Lưu các dữ liệu tối thiểu để khôi phục luật strict mode nếu app bị tắt giữa phiên.
     await AsyncStorage.multiSet([
         [ACTIVE_SESSION_ID_KEY, sessionId],
         [PENDING_FAILED_SESSION_ID_KEY, ''],
@@ -148,6 +154,8 @@ const persistActiveSessionGuard = async (sessionId: string, strictModeEnabled: b
 };
 
 const persistPendingSessionFailure = async (sessionId: string) => {
+    // Đánh dấu trước khi gọi API fail. Nếu mất mạng hoặc app bị tắt,
+    // lần mở sau sẽ tiếp tục gửi yêu cầu fail cho đúng phiên này.
     await AsyncStorage.setItem(PENDING_FAILED_SESSION_ID_KEY, sessionId);
 };
 
@@ -195,6 +203,9 @@ const GrowTreeScreen = () => {
     const [formColor, setFormColor] = useState(TAG_COLORS[0]);
     const [creatingTag, setCreatingTag] = useState(false);
     const [activeSession, setActiveSession] = useState<PlantingSessionDto | null>(null);
+
+    // State dùng để render; ref cho timer/listener đọc được phiên mới nhất ngay lập tức,
+    // không phải chờ React render lại sau setActiveSession.
     const activeSessionRef = useRef<PlantingSessionDto | null>(null);
     const [activeSessionStrictMode, setActiveSessionStrictMode] = useState(false);
     const activeSessionStrictModeRef = useRef(false);
@@ -253,6 +264,8 @@ const GrowTreeScreen = () => {
             return undefined;
         }
 
+        // Có phiên đang chạy thì nhờ Android giữ màn hình sáng.
+        // Cleanup luôn tắt cờ để không ảnh hưởng các màn hình khác khi rời Grow Tree.
         ScreenAwake.setKeepScreenOn(!!activeSession);
 
         return () => ScreenAwake.setKeepScreenOn(false);
@@ -471,6 +484,7 @@ const GrowTreeScreen = () => {
     }, []);
 
     const resumeActiveSession = useCallback(async () => {
+        // Server là nguồn dữ liệu chính: luôn hỏi server xem người dùng còn phiên Growing hay không.
         const session = await getActivePlantingSession();
 
         if (!session) {
@@ -507,6 +521,8 @@ const GrowTreeScreen = () => {
             || (sessionUsesStrictMode && focusLostDuration >= STRICT_MODE_FAILURE_MS);
 
         if (shouldFailRecoveredSession) {
+            // Phiên đã vi phạm strict mode từ trước khi app bị tắt/mất mạng,
+            // vì vậy phải hoàn tất việc đánh dấu Failed trước khi cho người dùng thao tác tiếp.
             setIsFailingSession(true);
             activeSessionRef.current = session;
 
@@ -588,6 +604,7 @@ const GrowTreeScreen = () => {
             showErrorAlert?: boolean;
         },
     ) => {
+        // AppState có thể phát nhiều event gần nhau (change/blur), ref này ngăn gọi API fail trùng.
         if (isFailingSessionRef.current) {
             return;
         }
@@ -706,6 +723,9 @@ const GrowTreeScreen = () => {
             }
 
             const focusLostAt = Date.now();
+
+            // Ghi cả ref, state và bộ nhớ máy: ref phục vụ event hiện tại,
+            // state cập nhật cảnh báo, AsyncStorage phục vụ trường hợp app bị tắt.
             strictFocusLostAtRef.current = focusLostAt;
             setStrictFocusLostAt(focusLostAt);
             AsyncStorage.setItem(STRICT_FOCUS_LOST_AT_KEY, String(focusLostAt))
@@ -726,6 +746,7 @@ const GrowTreeScreen = () => {
 
             const elapsedMs = getStrictFocusLossDuration(session, focusLostAt);
 
+            // Rời app từ 30 giây thì cảnh báo; từ 60 giây thì phiên thất bại.
             if (elapsedMs >= STRICT_MODE_WARNING_MS) {
                 setStrictModeWarningVisible(true);
             }
