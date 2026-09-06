@@ -36,7 +36,7 @@ Nếu chỉ chạy backend và trang quản trị thì không cần cài Node.js
 ### Prompt cài đặt môi trường dành cho AI Agent
 ```Cài môi trường để chạy dự án E:\Knowledtree trên Windows. Hãy thực hiện, không chỉ hướng dẫn.
 
-1. Đọc AGENTS.md và README.md.
+1. Đọc .agent và README.md.
 2. Kiểm tra và cài công cụ còn thiếu: Git, .NET SDK 9, PostgreSQL 16, Node.js, Yarn 1.22.22, JDK 17, Android Studio.
 3. Đọc cấu hình trong mobile/android để cài đúng Android SDK, Build Tools và NDK. Thiết lập JAVA_HOME, ANDROID_HOME và PATH.
 4. Cài các thư viện của backend và mobile theo cấu hình, lockfile có sẵn.
