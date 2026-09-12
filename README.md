@@ -47,5 +47,7 @@ Nếu chỉ chạy backend và trang quản trị thì không cần cài Node.js
 Làm lần lượt từng bước, kiểm tra thành công rồi mới tiếp tục. Không tự nâng phiên bản thư viện. Chỉ hỏi khi thiếu quyền hoặc mật khẩu. Báo phần đã chạy được và lỗi còn lại.
 ```
 ### Một số tài liệu bên lề
-Database Diagram: https://dbdiagram.io/d/6a263842d2fbd72c4d720d03
-Figma Design: https://www.figma.com/design/AZJKHAa7vsKO2hy07wt1Hn/Untitled?node-id=2-2&p=f
+
+- Database Diagram: https://dbdiagram.io/d/6a263842d2fbd72c4d720d03
+
+- Figma Design: https://www.figma.com/design/AZJKHAa7vsKO2hy07wt1Hn/Untitled?node-id=2-2&p=f
