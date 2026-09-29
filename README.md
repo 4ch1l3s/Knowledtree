@@ -2,7 +2,7 @@
 
 ## Giới thiệu
 
-**Kairos Garden** là đồ án tốt nghiệp xây dựng một ứng dụng hỗ trợ người dùng tập trung và duy trì thói quen. Hệ thống gồm ứng dụng di động dành cho người dùng và trang web dành cho quản trị viên.
+**Kairos Garden** là một ứng dụng hỗ trợ người dùng tập trung và duy trì thói quen. Hệ thống gồm ứng dụng di động dành cho người dùng và trang web dành cho quản trị viên.
 
 ## Công nghệ sử dụng
 
